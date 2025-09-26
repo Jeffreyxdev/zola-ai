@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import CardSwap, { Card } from '../components/CardSwap';
 import GradualBlur from '../components/GradualBlur';
 import GhostCursor from '../components/GhostCursor';
+import LoginModal from './dashboard/login';
 const Section = ({ children, className = "" }: { children: React.ReactNode, className?: string }) => (
   <motion.section 
     initial={{ opacity: 0, y: 30 }}
@@ -46,6 +47,7 @@ const CommandLine = ({ command, delay = 0 }: { command: string; delay?: number }
 
 export default function LandingPage() {
   const [isMobile, setIsMobile] = useState(false);
+  const [showLogin, setShowLogin] = useState(false);
 
   useEffect(() => {
     // Check window width on mount and resize
@@ -65,7 +67,17 @@ export default function LandingPage() {
      <nav className="fixed top-0 w-full p-4 md:p-6 flex justify-between items-center z-50">
         <div className="text-lg md:text-xl font-bold tracking-tighter">zola</div>
         <div className="text-xs tracking-widest text-gray-400">
-          <a href="#" className="hover:text-white transition">MENU</a>
+          <a
+            href="https://x.com/use_zola"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-white transition inline-flex items-center"
+          >
+            {/* Twitter "X" icon - simple SVG */}
+           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="24" height="24" fill="currentColor" className="text-white">
+           <path  d="M296.591 223.331L455.427 42.667h-37.639L279.871 199.535L169.716 42.667H42.666l166.575 237.212L42.666 469.333h37.642l145.644-165.658l116.331 165.658h127.05L296.582 223.331zm-51.555 58.638l-16.877-23.621L93.87 70.393h57.815L260.057 222.08l16.878 23.621l140.871 197.168h-57.815l-114.955-160.89z"/></svg>
+            <span className="sr-only">Twitter</span>
+          </a>
         </div>
       </nav>
       {/* Hero */}
@@ -85,9 +97,13 @@ export default function LandingPage() {
         <p className="text-gray-400 mb-10 max-w-lg mx-auto leading-relaxed">
            Trade, DCA, and execute instantly on Twitter, fueled by liquidity, built on Solana."
         </p>
-        <button className="bg-white text-black px-10 py-4 rounded-full font-medium hover:bg-gray-200 transition-all hover:scale-105 active:scale-95">
+        <button
+          className="bg-white text-black px-10 py-4 rounded-full font-medium hover:bg-gray-200 transition-all hover:scale-105 active:scale-95"
+          onClick={() => setShowLogin(true)}
+        >
           LAUNCH APP
         </button>
+        {showLogin && <LoginModal onClose={() => setShowLogin(false)} />}
         </div>
       </section>
 
