@@ -130,15 +130,16 @@ export default function LandingPage() {
           </motion.div>
       </Section>
       {/* card carousel - full height container centered */}
-      <div className="relative h-90  mt-20 flex items-center justify-center">
-        <CardSwap
-          width="90%"
-          height="100%"
-          cardDistance={60}
-          verticalDistance={70}
-          delay={5000}
-          pauseOnHover={false}
-        >
+    <div className="relative w-full min-h-125 mt-10 md:mt-20 flex items-center justify-center px-4">
+  <div className="w-full max-w-125 md:max-w-150">
+    <CardSwap
+      width="100%" 
+      height="auto" // Allows the internal content to dictate height
+      cardDistance={window.innerWidth < 768 ? 30 : 60} // Conditional logic for mobile
+      verticalDistance={window.innerWidth < 768 ? 40 : 70}
+      delay={5000}
+      pauseOnHover={false}
+    >
           <Card>
   <div className="space-y-4">
     {/* Optional particle/wave visual placeholder */}
@@ -188,12 +189,13 @@ export default function LandingPage() {
 
     <p className="text-gray-400 text-sm leading-relaxed">
       Deploy DCA, hedging, and yield strategies that adapt dynamically to
-      volatility — powered by predictive AI models.
+      volatility  powered by predictive AI models.
     </p>
   </div>
 </Card>
-        </CardSwap>
-      </div>
+    </CardSwap>
+  </div>
+</div>
 
 <section style={{position: 'relative',height: 500,overflow: 'hidden'}}>
   <div style={{ height: '100%',overflowY: 'auto',padding: '6rem 2rem',maxWidth: 900,
