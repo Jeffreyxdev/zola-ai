@@ -1,3 +1,4 @@
+
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import CardSwap, { Card } from '../components/CardSwap';
@@ -42,7 +43,22 @@ const CommandLine = ({ command, delay = 0 }: { command: string; delay?: number }
   );
 };
 
+
 export default function LandingPage() {
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    // Check window width on mount and resize
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    // Set initial value
+    handleResize();
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
   return (
     <div className="bg-[#050505] text-white min-h-screen font-sans selection:bg-white selection:text-black">
 
@@ -130,72 +146,73 @@ export default function LandingPage() {
           </motion.div>
       </Section>
       {/* card carousel - full height container centered */}
-    <div className="relative w-full min-h-125 mt-10 md:mt-20 flex items-center justify-center px-4">
-  <div className="w-full max-w-125 md:max-w-150">
-    <CardSwap
-      width="100%" 
-      height="auto" // Allows the internal content to dictate height
-      cardDistance={window.innerWidth < 768 ? 30 : 60} // Conditional logic for mobile
-      verticalDistance={window.innerWidth < 768 ? 40 : 70}
-      delay={5000}
-      pauseOnHover={false}
-    >
+ {/* card carousel - full height container centered */}
+    <div className="relative w-full min-h-100 md:min-h-125 mt-10 md:mt-20 flex items-center justify-center px-4 overflow-hidden">
+      <div className="w-full max-w-100 md:max-w-150">
+        <CardSwap
+          width="100%" 
+          height="auto" // Allows the internal content to dictate height
+          cardDistance={isMobile ? 30 : 60} // Dynamically reacts to screen size
+          verticalDistance={isMobile ? 40 : 70}
+          delay={5000}
+          pauseOnHover={false}
+        >
           <Card>
-  <div className="space-y-4">
-    {/* Optional particle/wave visual placeholder */}
-    <div className="h-32 rounded-xl bg-linear-to-br from-purple-500/20 via-indigo-500/10 to-transparent border border-white/10 relative overflow-hidden">
-      <div className="absolute inset-0 animate-pulse opacity-30 bg-[radial-gradient(circle_at_50%_50%,rgba(139,92,246,0.4),transparent_70%)]" />
+            <div className="space-y-4 p-2 md:p-4">
+              {/* Optional particle/wave visual placeholder */}
+              <div className="h-32 rounded-xl bg-linear-to-br from-purple-500/20 via-indigo-500/10 to-transparent border border-white/10 relative overflow-hidden">
+                <div className="absolute inset-0 animate-pulse opacity-30 bg-[radial-gradient(circle_at_50%_50%,rgba(139,92,246,0.4),transparent_70%)]" />
+              </div>
+
+              <h3 className="text-lg md:text-xl font-semibold tracking-tight">
+                Intelligent Liquidity Waves
+              </h3>
+
+              <p className="text-gray-400 text-sm leading-relaxed">
+                Our AI scans markets in real time, riding liquidity waves across chains to
+                execute trades at optimal pricing with minimal spread.
+              </p>
+            </div>
+          </Card>
+
+          <Card>
+            <div className="space-y-4 p-2 md:p-4">
+              {/* Particle motion visual */}
+              <div className="h-32 rounded-xl bg-linear-to-br from-cyan-500/20 via-blue-500/10 to-transparent border border-white/10 relative overflow-hidden">
+                <div className="absolute inset-0 opacity-40 bg-[radial-gradient(circle,rgba(34,211,238,0.4)_1px,transparent_1px)] bg-size-[12px_12px] animate-[pulse_4s_ease-in-out_infinite]" />
+              </div>
+
+              <h3 className="text-lg md:text-xl font-semibold tracking-tight">
+                Natural Language Execution
+              </h3>
+
+              <p className="text-gray-400 text-sm leading-relaxed">
+                Trade, automate, and rebalance using simple commands.  
+                Tweet it. Message it. The AI interprets intent and executes instantly.
+              </p>
+            </div>
+          </Card>
+
+          <Card>
+            <div className="space-y-4 p-2 md:p-4">
+              {/* Energy grid visual */}
+              <div className="h-32 rounded-xl bg-linear-to-br from-amber-500/20 via-orange-500/10 to-transparent border border-white/10 relative overflow-hidden">
+                <div className="absolute inset-0 opacity-30 bg-[linear-gradient(to_right,rgba(255,255,255,0.1)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.1)_1px,transparent_1px)] bg-size-[24px_24px]" />
+              </div>
+
+              <h3 className="text-lg md:text-xl font-semibold tracking-tight">
+                Autonomous Strategy Engine
+              </h3>
+
+              <p className="text-gray-400 text-sm leading-relaxed">
+                Deploy DCA, hedging, and yield strategies that adapt dynamically to
+                volatility powered by predictive AI models.
+              </p>
+            </div>
+          </Card>
+        </CardSwap>
+      </div>
     </div>
-
-    <h3 className="text-xl font-semibold tracking-tight">
-      Intelligent Liquidity Waves
-    </h3>
-
-    <p className="text-gray-400 text-sm leading-relaxed">
-      Our AI scans markets in real time, riding liquidity waves across chains to
-      execute trades at optimal pricing with minimal spread.
-    </p>
-  </div>
-</Card>
-
-<Card>
-  <div className="space-y-4">
-    {/* Particle motion visual */}
-    <div className="h-32 rounded-xl bg-linear-to-br from-cyan-500/20 via-blue-500/10 to-transparent border border-white/10 relative overflow-hidden">
-      <div className="absolute inset-0 opacity-40 bg-[radial-gradient(circle,rgba(34,211,238,0.4)_1px,transparent_1px)] bg-size-[12px_12px] animate-[pulse_4s_ease-in-out_infinite]" />
-    </div>
-
-    <h3 className="text-xl font-semibold tracking-tight">
-      Natural Language Execution
-    </h3>
-
-    <p className="text-gray-400 text-sm leading-relaxed">
-      Trade, automate, and rebalance using simple commands.  
-      Tweet it. Message it. The AI interprets intent and executes instantly.
-    </p>
-  </div>
-</Card>
-
-<Card>
-  <div className="space-y-4 mb-20" >
-    {/* Energy grid visual */}
-    <div className="h-32 rounded-xl bg-linear-to-br from-amber-500/20 via-orange-500/10 to-transparent border border-white/10 relative overflow-hidden">
-      <div className="absolute inset-0 opacity-30 bg-[linear-gradient(to_right,rgba(255,255,255,0.1)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.1)_1px,transparent_1px)] bg-size-[24px_24px]" />
-    </div>
-
-    <h3 className="text-xl font-semibold tracking-tight">
-      Autonomous Strategy Engine
-    </h3>
-
-    <p className="text-gray-400 text-sm leading-relaxed">
-      Deploy DCA, hedging, and yield strategies that adapt dynamically to
-      volatility  powered by predictive AI models.
-    </p>
-  </div>
-</Card>
-    </CardSwap>
-  </div>
-</div>
 
 <section style={{position: 'relative',height: 500,overflow: 'hidden'}}>
   <div style={{ height: '100%',overflowY: 'auto',padding: '6rem 2rem',maxWidth: 900,
