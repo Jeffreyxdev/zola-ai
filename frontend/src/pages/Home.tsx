@@ -2,8 +2,8 @@
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import CardSwap, { Card } from '../components/CardSwap';
-
 import GradualBlur from '../components/GradualBlur';
+import GhostCursor from '../components/GhostCursor';
 const Section = ({ children, className = "" }: { children: React.ReactNode, className?: string }) => (
   <motion.section 
     initial={{ opacity: 0, y: 30 }}
@@ -62,14 +62,19 @@ export default function LandingPage() {
   return (
     <div className="bg-[#050505] text-white min-h-screen font-sans selection:bg-white selection:text-black">
 
-     <nav className="fixed top-0 w-full p-6 flex justify-between items-center z-50">
-        <div className="text-xl font-bold tracking-tighter">zola</div>
+     <nav className="fixed top-0 w-full p-4 md:p-6 flex justify-between items-center z-50">
+        <div className="text-lg md:text-xl font-bold tracking-tighter">zola</div>
         <div className="text-xs tracking-widest text-gray-400">
           <a href="#" className="hover:text-white transition">MENU</a>
         </div>
       </nav>
       {/* Hero */}
-      <section className="py-32 px-6 text-center">
+      <section className="relative py-32 px-6 text-center overflow-hidden">
+        {/* decorative animated background */}
+        {/* choose one of the two below; comment out the other as needed */}
+        <GhostCursor />
+        {/* <GhostCursorBackground /> */}
+        <div className="relative z-10">
         <motion.h1 
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -83,6 +88,7 @@ export default function LandingPage() {
         <button className="bg-white text-black px-10 py-4 rounded-full font-medium hover:bg-gray-200 transition-all hover:scale-105 active:scale-95">
           LAUNCH APP
         </button>
+        </div>
       </section>
 
       {/* Liquidity Comparison */}
@@ -147,8 +153,8 @@ export default function LandingPage() {
       </Section>
       {/* card carousel - full height container centered */}
  {/* card carousel - full height container centered */}
-    <div className="relative w-full min-h-100 md:min-h-125 mt-10 md:mt-20 flex items-center justify-center px-4 overflow-hidden">
-      <div className="w-full max-w-100 md:max-w-150">
+    <div className="relative w-full min-h-96 md:min-h-125 mt-10 md:mt-20 flex items-center justify-center px-4 overflow-hidden">
+      <div className="w-full max-w-sm md:max-w-4xl">
         <CardSwap
           width="100%" 
           height="auto" // Allows the internal content to dictate height
