@@ -5,6 +5,7 @@ import { PhantomWalletAdapter } from '@solana/wallet-adapter-phantom';
 import { SolflareWalletAdapter } from '@solana/wallet-adapter-solflare';
 import { BackpackWalletAdapter } from '@solana/wallet-adapter-backpack';
 import magic from "@/assets/logo/magic.png"
+import { useNavigate } from 'react-router-dom';
 interface LoginModalProps {
   onClose: () => void;
 }
@@ -26,17 +27,21 @@ const readyLabel: Record<WalletReadyState, string> = {
 
 export default function LoginModal({ onClose }: LoginModalProps) {
   const walletContext = useContext(WalletContext);
+  const navigate = useNavigate();
   const [connecting, setConnecting] = useState<SupportedWalletName | null>(null);
 
   if (!walletContext) return null;
 
   const { connect, readyStates } = walletContext;
 
-  const handleConnect = async (name: SupportedWalletName) => {
+const handleConnect = async (name: SupportedWalletName) => {
     setConnecting(name);
     try {
       const success = await connect(name);
-      if (success) onClose();
+      if (success) {
+        onClose();
+        navigate('/dashboard'); // ← redirect here
+      }
     } finally {
       setConnecting(null);
     }

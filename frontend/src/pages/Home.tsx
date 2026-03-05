@@ -5,7 +5,6 @@ import CardSwap, { Card } from '../components/CardSwap';
 import GradualBlur from '../components/GradualBlur';
 import GhostCursor from '../components/GhostCursor';
 import LoginModal from './dashboard/login';
-import SolanaWalletProvider from '../components/SolanaWalletProvider';
 const Section = ({ children, className = "" }: { children: React.ReactNode, className?: string }) => (
   <motion.section 
     initial={{ opacity: 0, y: 30 }}
@@ -63,7 +62,6 @@ export default function LandingPage() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
   return (
-    <SolanaWalletProvider>
     <div className="bg-[#050505] text-white min-h-screen font-sans selection:bg-white selection:text-black">
 
      <nav className="fixed top-0 w-full p-4 md:p-6 flex justify-between items-center z-50">
@@ -298,6 +296,5 @@ export default function LandingPage() {
         </div>
       </footer>
     </div>
-    </SolanaWalletProvider>
   );
 }

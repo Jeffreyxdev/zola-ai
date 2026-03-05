@@ -7,6 +7,8 @@ import { WalletReadyState, type WalletAdapter } from '@solana/wallet-adapter-bas
 
 export type SupportedWalletName = 'Phantom' | 'Solflare' | 'Backpack' | 'Magic Eden';
 
+export type Cluster = "mainnet-beta" | "devnet";
+
 export interface WalletContextType {
   publicKey: string | null;
   isConnected: boolean;
@@ -14,6 +16,8 @@ export interface WalletContextType {
   readyStates: Record<SupportedWalletName, WalletReadyState>;
   connect: (name: SupportedWalletName) => Promise<boolean>;
   disconnect: () => Promise<void>;
+  cluster: Cluster;
+  setCluster: (c: Cluster) => void;
 }
 
 export const WalletContext = createContext<WalletContextType | null>(null);
@@ -33,6 +37,7 @@ export const SolanaWalletProvider: React.FC<{ children: ReactNode }> = ({ childr
   const [isConnected, setIsConnected] = useState(false);
   const [walletName, setWalletName] = useState<SupportedWalletName | null>(null);
   const [activeAdapter, setActiveAdapter] = useState<WalletAdapter | null>(null);
+  const [cluster, setCluster] = useState<Cluster>("mainnet-beta");
   const [readyStates, setReadyStates] = useState<Record<SupportedWalletName, WalletReadyState>>({
     Phantom: WalletReadyState.Unsupported,
     Solflare: WalletReadyState.Unsupported,
@@ -142,7 +147,7 @@ export const SolanaWalletProvider: React.FC<{ children: ReactNode }> = ({ childr
   }, [walletName, activeAdapter]);
 
   return (
-    <WalletContext.Provider value={{ publicKey, isConnected, walletName, readyStates, connect, disconnect }}>
+    <WalletContext.Provider value={{ publicKey, isConnected, walletName, readyStates, connect, disconnect, cluster, setCluster }}>
       {children}
     </WalletContext.Provider>
   );
