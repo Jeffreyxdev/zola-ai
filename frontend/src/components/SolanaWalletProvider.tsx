@@ -4,6 +4,7 @@ import { PhantomWalletAdapter } from '@solana/wallet-adapter-phantom';
 import { SolflareWalletAdapter } from '@solana/wallet-adapter-solflare';
 import { BackpackWalletAdapter } from '@solana/wallet-adapter-backpack';
 import { WalletReadyState, type WalletAdapter } from '@solana/wallet-adapter-base';
+import { post } from '../lib/api';
 
 export type SupportedWalletName = 'Phantom' | 'Solflare' | 'Backpack' | 'Magic Eden';
 
@@ -30,7 +31,20 @@ const adapters: Partial<Record<SupportedWalletName, WalletAdapter>> = {
 };
 
 // Magic Eden uses window injection — no official adapter package yet
-const getMagicEdenProvider = () => (window as any).magicEden?.solana ?? null;
+type MagicEdenProvider = { connect: () => Promise<{ publicKey: { toString: () => string } }>; disconnect: () => Promise<void> };
+const getMagicEdenProvider = (): MagicEdenProvider | null => {
+  const me = (window as unknown as { magicEden?: { solana?: MagicEdenProvider } }).magicEden;
+  return me?.solana ?? null;
+};
+
+/** Tell the backend about a newly connected wallet on the given cluster */
+async function registerWallet(wallet: string, cluster: string) {
+  try {
+    await post('/api/link-wallet', { wallet, cluster });
+  } catch (e) {
+    console.warn('[Zola] Failed to register wallet with backend:', e);
+  }
+}
 
 export const SolanaWalletProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [publicKey, setPublicKey] = useState<string | null>(null);
@@ -59,7 +73,6 @@ export const SolanaWalletProvider: React.FC<{ children: ReactNode }> = ({ childr
     };
 
     update();
-    // Adapters emit 'readyStateChange' — listen on each
     const unsubs = Object.values(adapters).map((adapter) => {
       const handler = () => update();
       adapter.on('readyStateChange', handler);
@@ -79,10 +92,13 @@ export const SolanaWalletProvider: React.FC<{ children: ReactNode }> = ({ childr
           return false;
         }
         const resp = await provider.connect();
-        setPublicKey(resp.publicKey.toString());
+        const pk = resp.publicKey.toString();
+        setPublicKey(pk);
         setIsConnected(true);
         setWalletName('Magic Eden');
         setActiveAdapter(null);
+        // ← Register with backend (include current cluster)
+        await registerWallet(pk, cluster);
         return true;
       }
 
@@ -105,10 +121,14 @@ export const SolanaWalletProvider: React.FC<{ children: ReactNode }> = ({ childr
 
       if (!adapter.publicKey) return false;
 
-      setPublicKey(adapter.publicKey.toString());
+      const pk = adapter.publicKey.toString();
+      setPublicKey(pk);
       setIsConnected(true);
       setWalletName(name);
       setActiveAdapter(adapter);
+
+      // ← Register with backend immediately after connect
+      await registerWallet(pk, cluster);
 
       // Handle disconnect events from the wallet itself
       adapter.once('disconnect', () => {
@@ -119,14 +139,25 @@ export const SolanaWalletProvider: React.FC<{ children: ReactNode }> = ({ childr
       });
 
       return true;
-    } catch (err: any) {
-      // User rejected — not a real error
-      if (err?.name !== 'WalletConnectionError') {
+    } catch (err: unknown) {
+      if ((err as { name?: string })?.name !== 'WalletConnectionError') {
         console.error(`Failed to connect ${name}:`, err);
       }
       return false;
     }
-  }, [activeAdapter]);
+  }, [activeAdapter, cluster]);
+
+  // ── Sync cluster toggle to backend whenever it changes ──────────────────
+  useEffect(() => {
+    if (!publicKey) return;
+    import('../lib/api').then(({ API_BASE }) => {
+      fetch(`${API_BASE}/api/cluster`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ wallet: publicKey, cluster }),
+      }).catch(() => { /* non-critical */ });
+    });
+  }, [cluster, publicKey]);
 
   const disconnect = useCallback(async () => {
     try {

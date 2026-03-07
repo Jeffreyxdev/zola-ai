@@ -2,6 +2,7 @@ import { useState, useContext, useEffect, useCallback } from "react";
 import { Connection, PublicKey } from "@solana/web3.js";
 import { WalletContext } from "../../../components/SolanaWalletProvider";
 import { IC, FONT, ACCENT } from "../icons";
+import { WS_BASE } from "../../../lib/api";
 
 function getRpcUrl(cluster: string) {
   return cluster === "devnet"
@@ -15,18 +16,18 @@ function shortSig(sig: string) {
 
 function timeAgo(ts: number) {
   const diff = Math.floor((Date.now() / 1000) - ts);
-  if (diff < 60)   return `${diff}s ago`;
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 60)    return `${diff}s ago`;
+  if (diff < 3600)  return `${Math.floor(diff / 60)}m ago`;
   if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
   return `${Math.floor(diff / 86400)}d ago`;
 }
 
 interface TxRow {
-  sig:      string;
-  time:     string;
-  label:    string;
-  status:   "success" | "fail";
-  amount:   string | null;
+  sig:    string;
+  time:   string;
+  label:  string;
+  status: "success" | "fail";
+  live?:  boolean; // newly pushed via WS
 }
 
 export function ActivityFeed() {
@@ -37,7 +38,9 @@ export function ActivityFeed() {
   const [rows,    setRows]    = useState<TxRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState("");
+  const [wsLive,  setWsLive]  = useState(false);
 
+  // ── Historical fetch (fallback / initial load) ─────────────────────────
   const fetchActivity = useCallback(async () => {
     if (!publicKey) return;
     setLoading(true);
@@ -53,7 +56,6 @@ export function ActivityFeed() {
         time:   s.blockTime ? timeAgo(s.blockTime) : "—",
         label:  s.memo ?? "Transaction",
         status: s.err ? "fail" : "success",
-        amount: null,
       }));
       setRows(result);
     } catch (e: unknown) {
@@ -66,14 +68,52 @@ export function ActivityFeed() {
 
   useEffect(() => {
     fetchActivity();
-    const id = setInterval(fetchActivity, 60_000);
-    return () => clearInterval(id);
   }, [fetchActivity]);
+
+  // ── WebSocket push — new TXes appear in real-time ──────────────────────
+  useEffect(() => {
+    if (!publicKey) return;
+
+    const ws = new WebSocket(`${WS_BASE}/ws/${publicKey}`);
+
+    ws.onopen  = () => setWsLive(true);
+    ws.onclose = () => setWsLive(false);
+    ws.onerror = () => setWsLive(false);
+
+    ws.onmessage = (evt) => {
+      try {
+        const data = JSON.parse(evt.data);
+        if (data.type !== "tx") return;
+        const newRow: TxRow = {
+          sig:    data.signature ?? "unknown",
+          time:   "just now",
+          label:  "Live transaction",
+          status: data.status === "success" ? "success" : "fail",
+          live:   true,
+        };
+        // Prepend and deduplicate
+        setRows(prev => {
+          const exists = prev.some(r => r.sig === newRow.sig);
+          if (exists) return prev;
+          return [newRow, ...prev].slice(0, 20);
+        });
+      } catch { /* ignore */ }
+    };
+
+    return () => ws.close();
+  }, [publicKey]);
 
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>On-chain Activity</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>On-chain Activity</div>
+          {wsLive && (
+            <span style={{ fontSize: 10, fontWeight: 700, background: "rgba(74,222,128,0.1)", color: "#4ade80", border: "1px solid rgba(74,222,128,0.25)", borderRadius: 5, padding: "2px 7px", letterSpacing: 1 }}>
+              ● LIVE
+            </span>
+          )}
+        </div>
         <button onClick={fetchActivity} style={{ background: "none", border: "none", cursor: "pointer", color: "#555", fontSize: 11, fontFamily: FONT }}>
           Refresh
         </button>
@@ -98,18 +138,21 @@ export function ActivityFeed() {
           <div key={i} style={{
             display: "flex", alignItems: "flex-start", gap: 12,
             padding: "14px 16px", borderRadius: 12,
-            background: row.status === "fail"
+            background: row.live
+              ? "rgba(74,222,128,0.04)"
+              : row.status === "fail"
               ? "rgba(248,113,113,0.04)"
               : "rgba(255,255,255,0.025)",
-            border: `1px solid ${row.status === "fail"
-              ? "rgba(248,113,113,0.12)"
-              : "rgba(255,255,255,0.05)"}`,
+            border: `1px solid ${row.live ? "rgba(74,222,128,0.18)" : row.status === "fail" ? "rgba(248,113,113,0.12)" : "rgba(255,255,255,0.05)"}`,
+            transition: "all 0.3s",
           }}>
-            {/* Status dot */}
             <div style={{ width: 8, height: 8, borderRadius: "50%", marginTop: 4, flexShrink: 0, background: row.status === "fail" ? "#f87171" : "#4ade80", boxShadow: row.status === "fail" ? "0 0 6px #f87171" : "0 0 6px #4ade80" }} />
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: "#ccc", marginBottom: 3, fontFamily: "monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                {shortSig(row.sig)}
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: "#ccc", fontFamily: "monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {shortSig(row.sig)}
+                </span>
+                {row.live && <span style={{ fontSize: 9, fontWeight: 700, color: "#4ade80", background: "rgba(74,222,128,0.1)", border: "1px solid rgba(74,222,128,0.2)", borderRadius: 4, padding: "1px 5px" }}>NEW</span>}
               </div>
               <div style={{ fontSize: 11, color: "#555" }}>{row.label}</div>
             </div>

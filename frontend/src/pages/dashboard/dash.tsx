@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { WalletContext } from "../../components/SolanaWalletProvider";
 import { IC, FONT, ACCENT } from "./icons";
 import type { NavItem } from "./types";
+import { api } from "../../lib/api";
 
 import { WalletOverview }    from "./panels/WalletOverview";
 import { SendPanel }         from "./panels/SendPanel";
@@ -37,6 +38,41 @@ const PANEL_TITLES: Record<NavItem, string> = {
   settings:      "Settings",
 };
 
+// ── Guide banner ────────────────────────────────────────────────────────────
+function GuideBanner({ onGetStarted }: { onGetStarted: () => void }) {
+  const [dismissed, setDismissed] = useState(false);
+  if (dismissed) return null;
+  return (
+    <div style={{ marginBottom: 24, padding: "18px 22px", background: "linear-gradient(135deg, rgba(125,113,211,0.12), rgba(3,225,255,0.06))", border: "1px solid rgba(125,113,211,0.22)", borderRadius: 16, display: "flex", alignItems: "center", gap: 20, position: "relative", overflow: "hidden", fontFamily: FONT }}>
+      {/* left glow accent */}
+      <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 3, background: `linear-gradient(to bottom, ${ACCENT}, #03E1FF)`, borderRadius: "16px 0 0 16px" }} />
+      <div style={{ fontSize: 28, flexShrink: 0 }}>🚀</div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 14, fontWeight: 700, color: "#fff", marginBottom: 5 }}>Link your accounts to unlock Zola AI</div>
+        <div style={{ fontSize: 12, color: "#666", lineHeight: 1.6 }}>
+          📱 <strong style={{ color: "#999" }}>Telegram</strong> — get real-time wallet alerts directly in chat&nbsp;&nbsp;·&nbsp;&nbsp;
+          🐦 <strong style={{ color: "#999" }}>X / Twitter</strong> — send SOL and check balances via @mentions
+        </div>
+      </div>
+      <button
+        onClick={onGetStarted}
+        style={{ flexShrink: 0, padding: "10px 18px", borderRadius: 10, border: "none", background: ACCENT, color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: FONT, whiteSpace: "nowrap" }}
+        onMouseEnter={e => (e.currentTarget.style.opacity = "0.85")}
+        onMouseLeave={e => (e.currentTarget.style.opacity = "1")}
+      >
+        Get started →
+      </button>
+      <button
+        onClick={() => setDismissed(true)}
+        title="Dismiss"
+        style={{ position: "absolute", top: 10, right: 12, background: "none", border: "none", color: "#444", fontSize: 16, cursor: "pointer", lineHeight: 1, padding: 2 }}
+        onMouseEnter={e => (e.currentTarget.style.color = "#888")}
+        onMouseLeave={e => (e.currentTarget.style.color = "#444")}
+      >×</button>
+    </div>
+  );
+}
+
 function renderPanel(nav: NavItem, onSend: () => void, onReceive: () => void) {
   switch (nav) {
     case "wallet":        return <WalletOverview onSend={onSend} onReceive={onReceive} />;
@@ -68,9 +104,18 @@ export default function Dashboard() {
     ? `${publicKey.slice(0, 4)}…${publicKey.slice(-4)}`
     : "—";
 
-  const [nav,       setNav]       = useState<NavItem>("wallet");
-  const [showQR,    setShowQR]    = useState(false);
-  const [sideOpen,  setSideOpen]  = useState(false);
+  const [nav,        setNav]        = useState<NavItem>("wallet");
+  const [showQR,     setShowQR]     = useState(false);
+  const [sideOpen,   setSideOpen]   = useState(false);
+  const [needsSetup, setNeedsSetup] = useState(false);
+
+  // Fetch once to decide whether to show the guide banner
+  useEffect(() => {
+    if (!publicKey) return;
+    api(`/api/status/${publicKey}`)
+      .then((s: any) => setNeedsSetup(!s.telegram && !s.twitter))
+      .catch(() => {});
+  }, [publicKey]);
 
   const isTerminal = nav === "terminal";
 
@@ -229,6 +274,11 @@ export default function Dashboard() {
               <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#4ade80", boxShadow: "0 0 8px #4ade80" }} />
             </div>
           </div>
+
+          {/* Guide banner — shown on wallet page if no accounts linked yet */}
+          {nav === "wallet" && needsSetup && (
+            <GuideBanner onGetStarted={() => { setNav("accounts"); setNeedsSetup(false); }} />
+          )}
 
           {/* Panel */}
           <div style={{ maxWidth: isTerminal ? 720 : 800 }}>
