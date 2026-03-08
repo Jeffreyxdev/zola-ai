@@ -132,7 +132,7 @@ export function BotTerminal() {
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={e => e.key === "Enter" && submit()}
-          placeholder="/balance  /status  /history  /help"
+          placeholder="what would you like to do with zola today?"
           style={{ flex: 1, background: "#111", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, padding: "10px 14px", color: "#fff", fontSize: 13, fontFamily: "monospace", outline: "none" }}
         />
         <button onClick={submit} style={{ background: `rgba(125,113,211,0.15)`, border: `1px solid rgba(125,113,211,0.3)`, borderRadius: 10, padding: "10px 16px", color: ACCENT, fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: FONT }}>

@@ -40,66 +40,16 @@ _running = False
 # --------------------------------------------------------------------------- #
 # Command parser
 # --------------------------------------------------------------------------- #
-def _parse_command(text: str) -> tuple[str, list[str]]:
-    """Extract the first /command and its args from a tweet."""
-    text = text.replace(f"@{BOT_HANDLE}", "").strip()
-    tokens = text.split()
-    if not tokens:
-        return "help", []
-    cmd = tokens[0].lstrip("/").lower()
-    return cmd, tokens[1:]
-
-
-async def _handle_command(user_record: dict, cmd: str, args: list[str]) -> str:
-    """Return the reply text for a registered user's command."""
+async def _handle_message(user_record: dict, text: str) -> str:
+    """Interpret natural language with Gemini and return a reply."""
+    import gemini_brain
+    
     wallet = user_record["wallet"]
-
-    if cmd in ("balance", "bal"):
-        # Lightweight HTTP call to public Solana RPC
-        import httpx
-        try:
-            payload = {
-                "jsonrpc": "2.0", "id": 1, "method": "getBalance",
-                "params": [wallet]
-            }
-            async with httpx.AsyncClient(timeout=8) as cli:
-                r = await cli.post(
-                    os.getenv("SOLANA_RPC_URL", "https://api.mainnet-beta.solana.com"),
-                    json=payload,
-                )
-                lamps = r.json()["result"]["value"]
-            sol = lamps / 1_000_000_000
-            short = f"{wallet[:6]}…{wallet[-6:]}"
-            return f"💰 Balance for `{short}`: *{sol:.4f} SOL*"
-        except Exception as e:
-            return f"⚠️ Could not fetch balance: {e}"
-
-    if cmd in ("pay", "send", "tip"):
-        # Format: /pay @handle <amount>
-        if len(args) < 2:
-            return "Usage: /pay @handle <amount_in_sol>"
-        return (
-            f"💸 Payment commands via Twitter are queued and require "
-            f"confirmation from your Zola dashboard."
-        )
-
-    if cmd == "status":
-        tg = "✅" if user_record.get("tg_chat_id") else "❌"
-        tw = "✅" if user_record.get("twitter_handle") else "❌"
-        short = f"{wallet[:6]}…{wallet[-6:]}"
-        return (
-            f"📊 *Zola Status*\n"
-            f"🔑 Wallet: `{short}`\n"
-            f"📱 Telegram: {tg}\n"
-            f"🐦 Twitter: {tw}"
-        )
-
-    return (
-        "Available commands:\n"
-        "/balance — wallet balance\n"
-        "/status  — linked accounts\n"
-        "/pay @handle <amount> — send SOL"
-    )
+    cluster = user_record.get("cluster", "mainnet-beta")
+    text_clean = text.replace(f"@{BOT_HANDLE}", "").strip()
+    
+    response_text = await gemini_brain.interpret_command(text_clean, wallet, {"cluster": cluster})
+    return response_text
 
 
 # --------------------------------------------------------------------------- #
@@ -161,8 +111,7 @@ async def _poll(client: tweepy.Client):
                             f"Sign up on {SIGNUP_URL} to start using zola 🚀"
                         )
                     else:
-                        cmd, args = _parse_command(tweet.text)
-                        reply_body = await _handle_command(user_record, cmd, args)
+                        reply_body = await _handle_message(user_record, tweet.text)
                         reply = f"@{handle} {reply_body}"
 
                     # Post reply (best-effort)

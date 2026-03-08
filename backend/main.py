@@ -27,6 +27,8 @@ import db
 import solana_monitor
 import telegram_bot
 import twitter_bot
+import dca_engine
+import gemini_brain
 
 load_dotenv()
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
@@ -43,10 +45,34 @@ async def lifespan(app: FastAPI):
     log.info("🚀 Zola AI backend starting…")
     await db.init_db()
 
-    # Start Telegram bot as background task
+    # Resume persistent monitors
+    await solana_monitor.resume_all()
+
+    # Start background tasks
     tg_task = asyncio.create_task(telegram_bot.start())
-    # Start Twitter bot as background task
     tw_task = asyncio.create_task(twitter_bot.start())
+    dca_task = dca_engine.start()
+    monitor_poll_task = solana_monitor.run_monitor_tick()
+
+    # Start Autonomous Scan Loop
+    async def _scan_loop():
+        while True:
+            await asyncio.sleep(3600)  # Hourly
+            try:
+                wallets = await db.get_all_monitored_wallets()
+                if not wallets:
+                    continue
+                alerts = await gemini_brain.autonomous_scan([w["wallet"] for w in wallets])
+                for alert in alerts:
+                    msg = alert["message"]
+                    for w in wallets:
+                        user = await db.get_user(w["wallet"])
+                        if user and user.get("tg_chat_id"):
+                            await telegram_bot.send_alert(user["tg_chat_id"], msg)
+            except Exception as e:
+                log.error("Scan loop error: %s", e)
+
+    scan_task = asyncio.create_task(_scan_loop())
 
     log.info("✅ Zola AI backend ready")
     yield  # ←── server is live here
@@ -54,8 +80,12 @@ async def lifespan(app: FastAPI):
     # Shutdown
     twitter_bot.stop()
     await telegram_bot.stop()
+    dca_engine.stop()
     tg_task.cancel()
     tw_task.cancel()
+    dca_task.cancel()
+    scan_task.cancel()
+    monitor_poll_task.cancel()
     log.info("Backend shut down cleanly.")
 
 
@@ -222,101 +252,10 @@ async def bot_command(body: BotCommandRequest):
     Execute a bot command from the in-app BotTerminal.
     Returns a text response to display in the terminal.
     """
-    cmd = body.command.strip().lower()
     wallet = body.wallet
-
-    if cmd == "/help":
-        return {
-            "response": (
-                "Available commands:\n"
-                "  /balance  — live SOL balance\n"
-                "  /history  — recent transactions\n"
-                "  /status   — linked accounts\n"
-                "  /alerts   — notification settings\n"
-                "  /pay @handle <amount> — send SOL via X"
-            )
-        }
-
-    if cmd == "/balance":
-        user = await db.get_user(wallet)
-        cluster = body.cluster or (user.get("cluster", "mainnet-beta") if user else "mainnet-beta")
-        rpc_url = (
-            "https://api.devnet.solana.com"
-            if cluster == "devnet"
-            else os.getenv("SOLANA_RPC_URL", "https://api.mainnet-beta.solana.com")
-        )
-        try:
-            payload = {
-                "jsonrpc": "2.0", "id": 1,
-                "method": "getBalance",
-                "params": [wallet],
-            }
-            async with httpx.AsyncClient(timeout=8) as cli:
-                r = await cli.post(rpc_url, json=payload)
-            lamps = r.json()["result"]["value"]
-            sol = lamps / 1_000_000_000
-            net = "🧪 Devnet" if cluster == "devnet" else "🌐 Mainnet"
-            return {"response": f"💰 Balance: {sol:.6f} SOL  ({net})"}
-        except Exception as e:
-            return {"response": f"⚠️ Could not fetch balance: {e}"}
-
-    if cmd == "/history":
-        user = await db.get_user(wallet)
-        cluster = body.cluster or (user.get("cluster", "mainnet-beta") if user else "mainnet-beta")
-        rpc_url = (
-            "https://api.devnet.solana.com"
-            if cluster == "devnet"
-            else os.getenv("SOLANA_RPC_URL", "https://api.mainnet-beta.solana.com")
-        )
-        try:
-            payload = {
-                "jsonrpc": "2.0", "id": 1,
-                "method": "getSignaturesForAddress",
-                "params": [wallet, {"limit": 5}],
-            }
-            async with httpx.AsyncClient(timeout=10) as cli:
-                r = await cli.post(rpc_url, json=payload)
-            sigs = r.json().get("result", [])
-            if not sigs:
-                return {"response": f"No recent transactions on {cluster}."}
-            net = "devnet" if cluster == "devnet" else ""
-            lines = [f"Recent transactions ({cluster}):"]
-            for s in sigs:
-                sig = s["signature"]
-                ts  = s.get("blockTime", 0)
-                err = "❌" if s.get("err") else "✅"
-                lines.append(f"  {err} {sig[:12]}… | {ts}")
-            return {"response": "\n".join(lines)}
-        except Exception as e:
-            return {"response": f"⚠️ Could not fetch history: {e}"}
-
-    if cmd == "/status":
-        user = await db.get_user(wallet)
-        tg = "✅ Connected" if user and user.get("tg_chat_id") else "❌ Not linked"
-        tw = "✅ Connected" if user and user.get("twitter_handle") else "❌ Not linked"
-        tw_handle = f"@{user['twitter_handle']}" if user and user.get("twitter_handle") else "—"
-        short = f"{wallet[:6]}…{wallet[-6:]}"
-        return {
-            "response": (
-                f"✅ Telegram: {tg}\n"
-                f"✅ X (Twitter): {tw} ({tw_handle})\n"
-                f"🟣 Wallet: {short}"
-            )
-        }
-
-    if cmd == "/alerts":
-        return {
-            "response": (
-                "Notification settings:\n"
-                "  ✅ Incoming payments\n"
-                "  ✅ Bot executions\n"
-                "  ✅ Vote alerts\n"
-                "  Toggle in the Notifications tab."
-            )
-        }
-
-    # Unknown command
-    return {"response": f'Unknown command: "{body.command}". Type /help for commands.'}
+    
+    response_text = await gemini_brain.interpret_command(body.command, wallet, {"cluster": body.cluster})
+    return {"response": response_text}
 
 
 # --------------------------------------------------------------------------- #

@@ -19,3 +19,4 @@ solders==0.21.0
 # --- Communication APIs ---
 python-telegram-bot==21.10
 tweepy==4.15.0
+google-generativeai>=0.7.0

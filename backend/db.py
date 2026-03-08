@@ -22,22 +22,29 @@ CREATE TABLE IF NOT EXISTS users (
     tg_link_code    TEXT,
     twitter_handle  TEXT,
     cluster         TEXT NOT NULL DEFAULT 'mainnet-beta',
+    encrypted_privkey TEXT,
     created_at      TEXT DEFAULT (datetime('now'))
 );
 """
 
 # Safe migration for existing DBs that don't have the cluster column yet
-MIGRATE_SQL = "ALTER TABLE users ADD COLUMN cluster TEXT NOT NULL DEFAULT 'mainnet-beta'"
+MIGRATE_SQL_CLUSTER = "ALTER TABLE users ADD COLUMN cluster TEXT NOT NULL DEFAULT 'mainnet-beta'"
+MIGRATE_SQL_PRIVKEY = "ALTER TABLE users ADD COLUMN encrypted_privkey TEXT"
 
 async def init_db():
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(CREATE_SQL)
-        # Add cluster column to existing DBs (idempotent)
+        # Add column to existing DBs (idempotent)
         try:
-            await db.execute(MIGRATE_SQL)
+            await db.execute(MIGRATE_SQL_CLUSTER)
         except Exception:
             pass  # Column already exists
+        try:
+            await db.execute(MIGRATE_SQL_PRIVKEY)
+        except Exception:
+            pass
         await db.commit()
+    import wallet_store; wallet_store.init_wallet_keys_table()
 
 
 # --------------------------------------------------------------------------- #
@@ -65,6 +72,22 @@ async def get_user(wallet: str) -> dict | None:
         )
         row = await cur.fetchone()
         return dict(row) if row else None
+
+
+async def get_user_by_tg_chat_id(tg_chat_id: str) -> dict | None:
+    """
+    Look up a user row by their Telegram chat ID.
+    Used by connect_handlers.py to find which wallet is linked to a Telegram user.
+    Returns the full user row dict, or None if not found.
+    """
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT * FROM users WHERE tg_chat_id = ?",
+            (tg_chat_id,)
+        ) as cursor:
+            row = await cursor.fetchone()
+            return dict(row) if row else None
 
 
 async def find_by_link_code(code: str) -> dict | None:
@@ -96,3 +119,14 @@ async def clear_link_code(wallet: str):
             "UPDATE users SET tg_link_code = NULL WHERE wallet = ?", (wallet,)
         )
         await db.commit()
+
+
+async def get_all_monitored_wallets() -> list[dict]:
+    """Return all wallets that have a linked Telegram chat ID."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cur = await db.execute(
+            "SELECT wallet, cluster FROM users WHERE tg_chat_id IS NOT NULL AND tg_chat_id != ''"
+        )
+        rows = await cur.fetchall()
+        return [dict(r) for r in rows]

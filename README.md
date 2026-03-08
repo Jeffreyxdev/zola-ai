@@ -13,7 +13,14 @@
 
 [Live App](https://zola-ai.pxxl.click) · [Twitter / X](https://x.com/use_zola)
 
+[Live App](https://zola-ai.pxxl.click) · [Twitter / X](https://x.com/use_zola)
+
 </div>
+
+---
+
+> **🏆 HACKATHON JUDGES NOTE**
+> We focused our primary testing and user flow on the **Telegram Bot** for this hackathon. The **Twitter bot** is fully functional in code (sharing the exact same Gemini agent execution pipeline), but due to pending Twitter API credits, we were unable to test it live. Please use the Telegram integration to test the full agentic flow! See `SKILL.MD` for a breakdown of our technical achievements.
 
 ---
 
@@ -318,5 +325,7 @@ aws s3 sync dist/ s3://your-bucket --delete
 <div align="center">
 
 Built with ☕ and `ctrl+z` — [Zola AI](https://zola-ai.pxxl.click) · [@use_zola](https://x.com/use_zola)
+
+**Built by Synq Studio** — Jeffrey Agabaenwere & Samuel Opeyemi
 
 </div>

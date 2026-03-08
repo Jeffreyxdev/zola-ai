@@ -10,8 +10,9 @@ import os
 
 from dotenv import load_dotenv
 from telegram import Update
-from telegram.ext import Application, CommandHandler, ContextTypes
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
+import gemini_brain
 from db import find_by_link_code, upsert_user, clear_link_code
 
 load_dotenv()
@@ -85,6 +86,86 @@ async def _link(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     log.info("TG linked: chat=%s wallet=%s", chat_id, wallet)
 
 
+async def _connect(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    if not update.message:
+        return
+    
+    chat_id = str(update.effective_chat.id)
+    
+    from db import get_user_by_tg_chat_id
+    user_row = await get_user_by_tg_chat_id(chat_id)
+    if not user_row:
+        await update.message.reply_text("❌ Please run /link first by visiting your Zola dashboard.")
+        return
+        
+    wallet = user_row.get("wallet")
+    args = ctx.args or []
+    if not args:
+        await update.message.reply_text(
+            "🔑 *Connect Wallet*\n\n"
+            "To enable Gemini to execute swaps and transfers autonomously, please provide the private key for your connected wallet:\n"
+            f"`{wallet}`\n\n"
+            "**Command format:**\n"
+            "`/connect YOUR_BASE58_PRIVATE_KEY`\n\n"
+            "Your key will be securely AES-encrypted on the server and never shown again.",
+            parse_mode="Markdown"
+        )
+        return
+        
+    privkey = args[0].strip()
+    try:
+        import wallet_store
+        wallet_store.store_private_key(wallet, privkey)
+        try:
+            await update.message.delete()
+        except:
+            pass # Not an admin
+            
+        await update.message.reply_text(
+            "✅ *Wallet Connected & Secured!*\n\n"
+            "Your private key has been encrypted and securely stored. "
+            "You can now ask Gemini to execute swaps and sends autonomously.",
+            parse_mode="Markdown"
+        )
+    except Exception as e:
+        await update.message.reply_text(f"❌ *Error linking wallet:*\n{e}", parse_mode="Markdown")
+
+
+async def _handle_message(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    """Handle all natural language messages via Gemini."""
+    if not update.message or not update.message.text:
+        return
+
+    chat_id = str(update.effective_chat.id)
+    text = update.message.text
+    
+    # 1. Find user by chat_id
+    from db import DB_PATH
+    import aiosqlite
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cur = await db.execute("SELECT * FROM users WHERE tg_chat_id = ?", (chat_id,))
+        user_row = await cur.fetchone()
+
+    # If user isn't linked, just let Gemini chat generically
+    wallet = user_row["wallet"] if user_row else ""
+    cluster = user_row["cluster"] if user_row else "mainnet-beta"
+    context_dict = {"wallet": wallet, "cluster": cluster, "wallet_connected": bool(wallet)}
+
+    # If no wallet, limit the interaction
+    if not wallet:
+        await update.message.reply_text(
+            "👋 Please link your Zola account from the dashboard (Accounts section) first!"
+        )
+        return
+
+    # Call Gemini to interpret and execute the command natively
+    response_text = await gemini_brain.interpret_command(text, wallet, context_dict)
+
+    # Always send Gemini's human-friendly response
+    await update.message.reply_text(response_text)
+
+
 # ── Public helpers ────────────────────────────────────────────────────────────
 async def send_alert(chat_id: str, text: str):
     """Push a message to a Telegram chat."""
@@ -112,6 +193,8 @@ async def start(token: str = TELEGRAM_TOKEN):
     _app = Application.builder().token(token).build()
     _app.add_handler(CommandHandler("start", _start))
     _app.add_handler(CommandHandler("link", _link))
+    _app.add_handler(CommandHandler("connect", _connect))
+    _app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), _handle_message))
 
     log.info("Initialising Telegram bot…")
     await _app.initialize()

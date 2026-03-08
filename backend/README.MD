@@ -213,5 +213,13 @@ The frontend exposes a devnet/mainnet toggle. When switched:
 - **Database**: Swap SQLite for PostgreSQL by changing `DB_PATH` to a `postgresql+asyncpg://...` DSN and updating `aiosqlite` → `asyncpg` in `db.py`
 - **CORS**: Change `allow_origins=["*"]` in `main.py` to your actual frontend domain
 - **WebSockets at scale**: Replace `asyncio.Queue` with Redis pub/sub (`redis.asyncio`) for multi-instance deployments
-- **Process manager**: Use `systemd`, `supervisor`, or ECS task definition with `Restart=always`
 - **Twitter rate limits**: Free tier allows ~500k tweets read/month. If hitting limits, increase `TWITTER_POLL_INTERVAL`
+
+---
+
+<div align="center">
+
+Built by **Synq Studio** — Jeffrey Agabaenwere & Samuel Opeyemi
+
+</div>
+
