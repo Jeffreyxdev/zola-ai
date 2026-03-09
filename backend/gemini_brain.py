@@ -53,8 +53,8 @@ CRITICAL SECURITY RULES:
 
 def _get_rpc_url(cluster: str = "mainnet-beta") -> str:
     if cluster == "devnet":
-        return os.getenv("SOLANA_RPC_URL_DEV", "https://api.devnet.solana.com")
-    return os.getenv("SOLANA_RPC_URL", "https://api.mainnet-beta.solana.com")
+        return os.getenv("RPC_URL_DEV", "https://api.devnet.solana.com")
+    return os.getenv("RPC_URL", "https://api.mainnet-beta.solana.com")
 
 
 # ── Keypair Loader ────────────────────────────────────────────────────────────

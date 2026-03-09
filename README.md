@@ -159,8 +159,8 @@ App runs at `http://localhost:5173`.
 | Variable                      | Description                    | Example                               |
 | ----------------------------- | ------------------------------ | ------------------------------------- |
 | `TELEGRAM_TOKEN`              | Bot token from @BotFather      | `8683:AAF...`                         |
-| `SOLANA_RPC_URL`              | Solana JSON-RPC endpoint       | `https://api.mainnet-beta.solana.com` |
-| `SOLANA_RPC_WS`               | Solana WebSocket endpoint      | `wss://api.mainnet-beta.solana.com`   |
+| `RPC_URL`              | Solana JSON-RPC endpoint       | `https://api.mainnet-beta.solana.com` |
+| `WS_URL`               | Solana WebSocket endpoint      | `wss://api.mainnet-beta.solana.com`   |
 | `DB_PATH`                     | SQLite file path               | `./zola.db`                           |
 | `TWITTER_CONSUMER_KEY`        | Twitter App consumer key       |                                       |
 | `TWITTER_CONSUMER_SECRET`     | Twitter App consumer secret    |                                       |

@@ -129,10 +129,10 @@ Copy `.env.example` → `.env` and fill in your keys.
 
 ```bash
 # --- SOLANA ---
-SOLANA_RPC_URL=https://api.mainnet-beta.solana.com
-SOLANA_RPC_WS=wss://api.mainnet-beta.solana.com
-SOLANA_RPC_URL_DEV=https://api.devnet.solana.com
-SOLANA_RPC_WS_DEV=wss://api.devnet.solana.com
+RPC_URL=https://api.mainnet-beta.solana.com
+WS_URL=wss://api.mainnet-beta.solana.com
+RPC_URL_DEV=https://api.devnet.solana.com
+WS_URL_DEV=wss://api.devnet.solana.com
 
 # --- DATABASE ---
 DB_PATH=./zola.db

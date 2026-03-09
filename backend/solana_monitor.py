@@ -26,18 +26,16 @@ load_dotenv()
 log = logging.getLogger("zola.monitor")
 
 # ── RPC URLs ─────────────────────────────────────────────────────────────────
-_WS_URLS = {
-    "mainnet-beta": os.getenv("SOLANA_RPC_WS",    "wss://api.mainnet-beta.solana.com"),
-    "devnet":       os.getenv("SOLANA_RPC_WS_DEV", "wss://api.devnet.solana.com"),
-}
-
-def _ws_url(cluster: str) -> str:
-    return _WS_URLS.get(cluster, _WS_URLS["mainnet-beta"])
-
-def _rpc_url(cluster: str) -> str:
+def _ws_url(cluster: str = "mainnet-beta") -> str:
     if cluster == "devnet":
-        return os.getenv("SOLANA_RPC_URL_DEV", "https://api.devnet.solana.com")
-    return os.getenv("SOLANA_RPC_URL", "https://api.mainnet-beta.solana.com")
+        return os.getenv("WS_URL_DEV", "wss://api.devnet.solana.com")
+    return os.getenv("WS_URL", "wss://api.mainnet-beta.solana.com")
+
+
+def _rpc_url(cluster: str = "mainnet-beta") -> str:
+    if cluster == "devnet":
+        return os.getenv("RPC_URL_DEV", "https://api.devnet.solana.com")
+    return os.getenv("RPC_URL", "https://api.mainnet-beta.solana.com")
 
 
 # ── Registry ─────────────────────────────────────────────────────────────────

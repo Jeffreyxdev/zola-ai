@@ -34,7 +34,7 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("zola.main")
 
-SOLANA_RPC    = os.getenv("SOLANA_RPC_URL",         "https://api.mainnet-beta.solana.com")
+SOLANA_RPC    = os.getenv("RPC_URL",         "https://api.mainnet-beta.solana.com")
 TG_BOT_NAME   = os.getenv("TELEGRAM_BOT_USERNAME",  "Zolaactive_bot")
 
 # --------------------------------------------------------------------------- #
