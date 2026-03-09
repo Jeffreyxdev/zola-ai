@@ -11,6 +11,7 @@ While Zola is designed as a multi-platform autonomous DeFi agent, **our primary 
 - **Telegram (`telegram_bot.py`)**: Fully implemented, rigorously tested, and serves as our primary interactive interface. Features secure deep-linking, a `/connect` flow that auto-deletes sensitive messages, and full agentic execution.
 - **Twitter (`twitter_bot.py`)**: Fully functional in code. Uses a robust Tweepy v2 polling engine and shares the *exact same* Gemini agentic execution pipeline as Telegram. Currently untested live due to pending Twitter Developer API credits — the architecture guarantees identical behaviour to Telegram once credits are applied.
 
+the core ai engine has 2 main agents one for security and the other for onchain executions what work hand in hand simultaneously
 ---
 
 ##  1. Agentic AI Integration (Gemini 2.0 Flash Lite)
