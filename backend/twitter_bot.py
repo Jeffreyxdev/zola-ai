@@ -2,7 +2,7 @@
 Zola AI — Twitter Bot
 Uses Tweepy v2 search polling (works on all API tiers, including Free/Basic).
 Every 30 seconds we search for recent mentions of @use_zola and reply:
-  - Unregistered user → "Sign up on https://zola-ai.pxxl.click/"
+  - Unregistered user → "Sign up on https://use-zola.vercel.app/"
   - Registered user   → execute command (balance / pay / status / etc.)
 
 Set TWITTER_POLL_INTERVAL env var (seconds, default 30) to tune frequency.
@@ -29,7 +29,7 @@ ACCESS_TOKEN_SECRET = os.getenv("TWITTER_ACCESS_TOKEN_SECRET", "")
 BEARER_TOKEN        = os.getenv("TWITTER_BEARER_TOKEN", "")
 POLL_INTERVAL       = int(os.getenv("TWITTER_POLL_INTERVAL", "30"))
 
-SIGNUP_URL = "https://zola-ai.pxxl.click/"
+SIGNUP_URL = "https://use-zola.vercel.app/"
 BOT_HANDLE = "use_zola"
 
 # IDs we've already replied to (reset on restart; use DB / Redis in prod)
