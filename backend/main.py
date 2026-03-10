@@ -19,10 +19,11 @@ from contextlib import asynccontextmanager
 
 import httpx
 from dotenv import load_dotenv
+
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-
+import sentry_sdk
 import db
 import solana_monitor
 import telegram_bot
@@ -31,6 +32,7 @@ import dca_engine
 import gemini_brain
 
 load_dotenv()
+sentry_sdk.init(dsn=os.getenv("SENTRY_DSN"))
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("zola.main")
 

@@ -11,7 +11,7 @@ aiosqlite>=0.20.0
 websockets==11.0.3
 requests==2.32.3
 python-dotenv==1.0.1
-
+sentry-sdk[fastapi]
 # --- Blockchain Interaction ---
 solana==0.35.0
 solders==0.21.0
