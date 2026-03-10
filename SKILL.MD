@@ -1,6 +1,6 @@
 # Zola AI — Technical Skills & Architecture
 
-> **Hackathon Judges**: This document covers Zola AI's core technical achievements, architecture decisions, and the cluster-switching system. Live demo: [zola-ai.pxxl.click](https://zola-ai.pxxl.click/)
+> **Hackathon Judges**: This document covers Zola AI's core technical achievements, architecture decisions, and the cluster-switching system. Live demo: [use-zola.vercel.app/](https://use-zola.vercel.app/)
 
 ---
 
@@ -45,7 +45,7 @@ Zola supports live switching between Solana `mainnet-beta` and `devnet` without 
 
 In the Zola dashboard, users can switch clusters from the **Settings panel**:
 
-1. Open the dashboard at [zola-ai.pxxl.click](https://zola-ai.pxxl.click/)
+1. Open the dashboard at [https://use-zola.vercel.app/](https://use-zola.vercel.app/)
 2. Connect your Phantom wallet
 3. Click the **Settings** 
 4. Toggle between **Mainnet** and **Devnet**
@@ -186,7 +186,7 @@ CLUSTER=mainnet-beta     # default cluster for new users
 
 ## 🔗 Links
 
-- **Live Demo**: [zola-ai.pxxl.click](https://zola-ai.pxxl.click/)
+- **Live Demo**: [use-zola.vercel.app](https://use-zola.vercel.app/)
 - **Telegram Bot**: [@Zolaactive_bot](https://t.me/Zolaactive_bot)
 - **Twitter Bot**: [@use_zola](https://x.com/use_zola)
 - **Built by**: Synq Studio — Jeffrey Agabaenwere & Samuel Opeyemi
