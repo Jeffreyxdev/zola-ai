@@ -1,5 +1,6 @@
 import { useContext } from "react";
 import { WalletContext } from "@/components/WalletContext";
+import type { Cluster } from "@/components/WalletContext";
 import { IC, FONT } from "../icons";
 
 const ENDPOINTS: Record<string, string> = {
