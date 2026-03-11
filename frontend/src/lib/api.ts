@@ -1,6 +1,5 @@
 /**
  * Zola AI — centralised API/WS helper
- * Reads VITE_API_URL and VITE_WS_URL from .env.local (or falls back to localhost)
  */
 export const API_BASE =
   import.meta.env.VITE_API_URL as string ?? "http://localhost:8000";
@@ -29,11 +28,104 @@ export function post<T = unknown>(path: string, body: unknown): Promise<T> {
   return api<T>(path, { method: "POST", body: JSON.stringify(body) });
 }
 
-/** Status response for /api/status/{wallet} */
+/** Delete helper */
+export function del<T = unknown>(path: string): Promise<T> {
+  return api<T>(path, { method: "DELETE" });
+}
+
+/** Admin request helper — appends wallet as query param */
+export function adminApi<T = unknown>(path: string, wallet: string, opts?: RequestInit): Promise<T> {
+  const sep = path.includes("?") ? "&" : "?";
+  return api<T>(`${path}${sep}wallet=${encodeURIComponent(wallet)}`, opts);
+}
+
+export function adminPost<T = unknown>(path: string, wallet: string, body: unknown): Promise<T> {
+  return adminApi<T>(path, wallet, { method: "POST", body: JSON.stringify(body) });
+}
+
+export function adminDel<T = unknown>(path: string, wallet: string): Promise<T> {
+  return adminApi<T>(path, wallet, { method: "DELETE" });
+}
+
+// --------------------------------------------------------------------------- //
+// Interfaces
+// --------------------------------------------------------------------------- //
 export interface ZolaStatus {
   wallet: string;
   registered: boolean;
   telegram: boolean;
   twitter: boolean;
   twitter_handle?: string;
+  cluster?: string;
+}
+
+export interface ZolaSubscription {
+  wallet: string;
+  plan: "free" | "pro";
+  expires_at: string | null;
+  auto_renew: number;
+  payment_token: "SOL" | "USDC";
+  started_at?: string;
+}
+
+export interface SubscribeQuote {
+  amount: number;
+  recipient: string;
+  token: "SOL" | "USDC";
+  usdc_mint: string;
+  expires_at: string;
+  price_usd: number;
+  sol_price: number;
+  blockhash?: string;
+}
+
+export interface AdminStats {
+  total_users: number;
+  pro_users: number;
+  free_users: number;
+  total_volume_usd: number;
+  total_fee_revenue_usd: number;
+  total_pro_revenue_usd: number;
+  telegram_linked: number;
+  twitter_linked: number;
+  swaps_today: number;
+  swaps_this_month: number;
+  active_dca_tasks: number;
+  chart_history: { day: string; swaps: number; revenue: number }[];
+}
+
+export interface AdminUser {
+  wallet: string;
+  plan: string;
+  tg_linked: number;
+  tw_linked: number;
+  cluster: string;
+  created_at: string;
+  expires_at: string | null;
+  last_swap: string | null;
+  total_volume: number;
+}
+
+export interface AdminRevenue {
+  today: number;
+  this_week: number;
+  this_month: number;
+  all_time: number;
+  by_token: { SOL: number; USDC: number };
+  fee_revenue: number;
+  subscription_revenue: number;
+  chart_data: { day: string; revenue: number }[];
+}
+
+export interface ProAnalytics {
+  wallet: string;
+  sol_balance: number;
+  balance_usd: number;
+  total_volume_usd: number;
+  pnl_usd: number;
+  pnl_percent: number;
+  top_tokens: { token: string; value_usd: number }[];
+  swap_history: unknown[];
+  ai_recommendation: string;
+  tx_count: number;
 }

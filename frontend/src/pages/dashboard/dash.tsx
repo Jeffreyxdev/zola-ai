@@ -1,9 +1,12 @@
 import { useState, useContext, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { WalletContext } from "../../components/SolanaWalletProvider";
+import { WalletContext } from "@/components/WalletContext";
 import { IC, FONT, ACCENT } from "./icons";
 import type { NavItem } from "./types";
 import { api } from "../../lib/api";
+import { ProModal, ProBadge } from "../../components/ProModal";
+import { ProAnalytics } from "./panels/ProAnalytics";
+import { ProAlerts }   from "./panels/ProAlerts";
 
 import { WalletOverview }    from "./panels/WalletOverview";
 import { SendPanel }         from "./panels/SendPanel";
@@ -15,13 +18,15 @@ import { ConnectedAccounts } from "./panels/ConnectedAccounts";
 import { Notifications }     from "./panels/Notifications";
 import { Settings }          from "./panels/Settings";
 
-const NAV_ITEMS: { id: NavItem; label: string; icon: React.ReactElement }[] = [
+const NAV_ITEMS: { id: NavItem; label: string; icon: React.ReactElement; pro?: boolean }[] = [
   { id: "wallet",        label: "Wallet",        icon: IC.wallet   },
   { id: "terminal",      label: "Bot Terminal",  icon: IC.terminal },
   { id: "send",          label: "Send",          icon: IC.send     },
   { id: "history",       label: "History",       icon: IC.history  },
   { id: "activity",      label: "Activity",      icon: IC.activity },
   { id: "accounts",      label: "Accounts",      icon: IC.accounts },
+  { id: "analytics",     label: "Analytics",     icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/><path d="M5 3v4M3 5h4M6 17v4M4 19h4M13 3l2 2-2 2M18 8l2 2-2 2"/></svg>, pro: true },
+  { id: "proalerts",     label: "Pro Alerts",    icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>, pro: true },
   { id: "notifications", label: "Alerts",        icon: IC.bell     },
   { id: "settings",      label: "Settings",      icon: IC.settings },
 ];
@@ -34,6 +39,8 @@ const PANEL_TITLES: Record<NavItem, string> = {
   history:       "Transactions",
   activity:      "On-chain activity",
   accounts:      "Linked accounts",
+  analytics:     "Pro Analytics",
+  proalerts:     "Pro Alerts",
   notifications: "Notifications",
   settings:      "Settings",
 };
@@ -73,7 +80,17 @@ function GuideBanner({ onGetStarted }: { onGetStarted: () => void }) {
   );
 }
 
-function renderPanel(nav: NavItem, onSend: () => void, onReceive: () => void) {
+function renderPanel(nav: NavItem, onSend: () => void, onReceive: () => void, isPro: boolean, onUpgrade: () => void) {
+  // Pro-gated panels
+  if ((nav === "analytics" || nav === "proalerts") && !isPro) {
+    return (
+      <div style={{ padding: 32, textAlign: "center", fontFamily: FONT, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ fontSize: 16, fontWeight: 700, color: "#fff", marginBottom: 8 }}>Zola Pro required</div>
+        <div style={{ fontSize: 13, color: "#555", marginBottom: 20 }}>Upgrade to unlock analytics, alerts, and AI insights.</div>
+        <button onClick={onUpgrade} style={{ padding: "12px 28px", borderRadius: 10, border: "none", background: "linear-gradient(135deg, #161616ff, #161616ff)", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: FONT }}>Upgrade to Pro · $6/mo</button>
+      </div>
+    );
+  }
   switch (nav) {
     case "wallet":        return <WalletOverview onSend={onSend} onReceive={onReceive} />;
     case "terminal":      return <BotTerminal />;
@@ -81,6 +98,8 @@ function renderPanel(nav: NavItem, onSend: () => void, onReceive: () => void) {
     case "history":       return <TxHistory />;
     case "activity":      return <ActivityFeed />;
     case "accounts":      return <ConnectedAccounts />;
+    case "analytics":     return <ProAnalytics />;
+    case "proalerts":     return <ProAlerts />;
     case "notifications": return <Notifications />;
     case "settings":      return <Settings />;
     default:              return null;
@@ -92,13 +111,14 @@ export default function Dashboard() {
   const ctx        = useContext(WalletContext);
   const publicKey  = ctx?.publicKey  ?? null;
   const walletName = ctx?.walletName ?? null;
-  const cluster    = ctx?.cluster    ?? "mainnet-beta";
-  const disconnect = ctx?.disconnect;
+  const cluster      = ctx?.cluster    ?? "mainnet-beta";
+  const disconnect   = ctx?.disconnect;
+  const isConnecting = ctx?.isConnecting ?? true;
 
   // ── Wallet guard ─────────────────────────────────────────────────────────
   useEffect(() => {
-    if (!publicKey) navigate("/", { replace: true });
-  }, [publicKey, navigate]);
+    if (!isConnecting && !publicKey) navigate("/", { replace: true });
+  }, [publicKey, isConnecting, navigate]);
 
   const shortKey = publicKey
     ? `${publicKey.slice(0, 4)}…${publicKey.slice(-4)}`
@@ -108,20 +128,29 @@ export default function Dashboard() {
   const [showQR,     setShowQR]     = useState(false);
   const [sideOpen,   setSideOpen]   = useState(false);
   const [needsSetup, setNeedsSetup] = useState(false);
+  const [showPro,    setShowPro]    = useState(false);
+  const [isPro,      setIsPro]      = useState(false);
 
   // Fetch once to decide whether to show the guide banner
   useEffect(() => {
     if (!publicKey) return;
-    api(`/api/status/${publicKey}`)
-      .then((s: any) => setNeedsSetup(!s.telegram && !s.twitter))
+    api<{ telegram?: unknown; twitter?: unknown }>(`/api/status/${publicKey}`)
+      .then(s => setNeedsSetup(!s.telegram && !s.twitter))
+      .catch(() => {});
+    // Check subscription
+    api<{ plan: string }>(`/api/subscription/${publicKey}`)
+      .then(s => setIsPro(s.plan === "pro"))
       .catch(() => {});
   }, [publicKey]);
 
   const isTerminal = nav === "terminal";
 
-  const handleNav = (id: NavItem) => { setNav(id); setSideOpen(false); };
+  const handleNav = (id: NavItem) => {
+    setNav(id);
+    setSideOpen(false);
+  };
 
-  if (!publicKey) return null; // guard renders nothing while redirecting
+  if (isConnecting || !publicKey) return null; // guard renders nothing while redirecting
 
   return (
     <>
@@ -177,6 +206,7 @@ export default function Dashboard() {
                 transition: "all 0.15s",
               }}>
                 {item.icon} {item.label}
+                {item.pro && !isPro && <svg style={{ marginLeft: "auto", flexShrink: 0, opacity: 0.35 }} width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>}
               </button>
             ))}
           </nav>
@@ -270,8 +300,9 @@ export default function Dashboard() {
               {cluster === "devnet" && (
                 <span style={{ fontSize: 10, fontWeight: 700, background: "rgba(251,191,36,0.12)", color: "#fbbf24", border: "1px solid rgba(251,191,36,0.25)", borderRadius: 6, padding: "2px 8px", letterSpacing: 1 }}>DEVNET</span>
               )}
-              <div style={{ fontSize: 11, color: "#444", fontFamily: "monospace" }}>{shortKey}</div>
-              <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#4ade80", boxShadow: "0 0 8px #4ade80" }} />
+              <ProBadge onUpgrade={() => setShowPro(true)} />
+              <div style={{ fontSize: 11, color: "#fff", fontFamily: "monospace" }}>{shortKey}</div>
+              <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#212222ff", boxShadow: "0 0 8px #303030ff" }} />
             </div>
           </div>
 
@@ -284,13 +315,14 @@ export default function Dashboard() {
           <div style={{ maxWidth: isTerminal ? 720 : 800 }}>
             {isTerminal
               ? <div style={{ height: 500 }}><BotTerminal /></div>
-              : renderPanel(nav, () => setNav("send"), () => setShowQR(true))
+              : renderPanel(nav, () => setNav("send"), () => setShowQR(true), isPro, () => setShowPro(true))
             }
           </div>
         </main>
       </div>
 
       {showQR && <ReceiveModal address={publicKey} onClose={() => setShowQR(false)} />}
+      {showPro && <ProModal onClose={() => setShowPro(false)} onSuccess={() => { setIsPro(true); setShowPro(false); }} />}
     </>
   );
 }

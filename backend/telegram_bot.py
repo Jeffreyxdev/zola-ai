@@ -9,6 +9,7 @@ import logging
 import os
 
 from dotenv import load_dotenv
+import telegram
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
@@ -23,6 +24,21 @@ TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN", "")
 
 _app: Application | None = None
 
+# Suppress harmless Conflict tracebacks during uvicorn --reload when old worker is killed
+class ConflictFilter(logging.Filter):
+    def filter(self, record):
+        msg = record.getMessage()
+        if "terminated by other getUpdates request" in msg:
+            return False
+        if record.exc_info:
+            _, exc_value, _ = record.exc_info
+            if "terminated by other getUpdates request" in str(exc_value):
+                return False
+        return True
+
+logging.getLogger("telegram.ext._updater").addFilter(ConflictFilter())
+logging.getLogger("telegram.ext.Updater").addFilter(ConflictFilter())
+logging.getLogger("httpx").addFilter(ConflictFilter())
 
 # ── Handlers ─────────────────────────────────────────────────────────────────
 async def _start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
@@ -166,6 +182,13 @@ async def _handle_message(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(response_text)
 
 
+async def _error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
+    """Log the error and gracefully ignore telegram Conflicts from alternate uvicorn workers."""
+    if isinstance(context.error, telegram.error.Conflict):
+        log.warning("Telegram polling conflict ignored: another worker is active.")
+    else:
+        log.error("Telegram bot unhandled exception: %s", context.error)
+
 # ── Public helpers ────────────────────────────────────────────────────────────
 async def send_alert(chat_id: str, text: str):
     """Push a message to a Telegram chat."""
@@ -195,6 +218,7 @@ async def start(token: str = TELEGRAM_TOKEN):
     _app.add_handler(CommandHandler("link", _link))
     _app.add_handler(CommandHandler("connect", _connect))
     _app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), _handle_message))
+    _app.add_error_handler(_error_handler)
 
     log.info("Initialising Telegram bot…")
     await _app.initialize()
@@ -206,12 +230,21 @@ async def start(token: str = TELEGRAM_TOKEN):
     except Exception as e:
         log.warning("Could not clear webhook: %s", e)
 
-    await _app.start()
-    await _app.updater.start_polling(
-        drop_pending_updates=True,
-        allowed_updates=Update.ALL_TYPES,
-    )
-    log.info("Telegram bot polling ✅  (send /start to your bot)")
+    # Delay polling start slightly to allow old uvicorn workers to cleanly shut down
+    # and release the Telegram getUpdates lock without raising a Conflict traceback.
+    await asyncio.sleep(3)
+
+    try:
+        await _app.start()
+        await _app.updater.start_polling(
+            drop_pending_updates=True,
+            allowed_updates=Update.ALL_TYPES,
+        )
+        log.info("Telegram bot polling ✅  (send /start to your bot)")
+    except telegram.error.Conflict:
+        log.warning("Telegram bot conflict: Another instance is currently polling. Polling disabled for this worker.")
+    except Exception as e:
+        log.error("Telegram polling error: %s", e)
 
     # Keep running until cancelled
     while True:

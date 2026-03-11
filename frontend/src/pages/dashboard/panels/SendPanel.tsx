@@ -6,7 +6,7 @@ import {
   Transaction,
   LAMPORTS_PER_SOL,
 } from "@solana/web3.js";
-import { WalletContext } from "../../../components/SolanaWalletProvider";
+import { WalletContext } from "@/components/WalletContext";
 import { IC, FONT, ACCENT } from "../icons";
 
 type Step = "recipient" | "amount" | "review" | "done";
@@ -63,7 +63,7 @@ function StepIndicator({ current }: { current: Step }) {
 export function SendPanel() {
   const ctx = useContext(WalletContext);
   const publicKey = ctx?.publicKey ?? null;
-  const cluster   = (ctx as any)?.cluster ?? "mainnet-beta";
+  const cluster   = (ctx as { publicKey: string | null; cluster?: string } | null)?.cluster ?? "mainnet-beta";
 
   const [step,       setStep]       = useState<Step>("recipient");
   const [mode,       setMode]       = useState<"address" | "x">("address");
@@ -140,7 +140,8 @@ export function SendPanel() {
       tx.recentBlockhash = (await conn.getLatestBlockhash()).blockhash;
 
       // Use wallet adapter sign if available (Phantom injects signTransaction)
-      const provider = (window as any)?.solana ?? (window as any)?.phantom?.solana;
+      const provider = (window as unknown as Record<string, unknown>)?.solana as { signTransaction: (tx: Transaction) => Promise<Transaction> } | undefined
+        ?? (window as unknown as Record<string, { solana?: { signTransaction: (tx: Transaction) => Promise<Transaction> } }>)?.phantom?.solana;
       if (!provider) throw new Error("No wallet provider found — connect a wallet first");
 
       const signed = await provider.signTransaction(tx);
@@ -148,8 +149,8 @@ export function SendPanel() {
       await conn.confirmTransaction(sig, "confirmed");
       setTxSig(sig);
       setStep("done");
-    } catch (e: any) {
-      setSendError(e?.message ?? "Transaction failed");
+    } catch (e: unknown) {
+      setSendError(e instanceof Error ? e.message : "Transaction failed");
     } finally {
       setSending(false);
     }
@@ -218,8 +219,8 @@ export function SendPanel() {
 
           <button onClick={handleRecipientNext} style={{
             width: "100%", padding: "14px", borderRadius: 12,
-            background: `linear-gradient(135deg, ${ACCENT}, #5a4fb5)`,
-            border: "none", color: "#fff", fontSize: 14, fontWeight: 700,
+            background: "#161616",
+            border: "1px solid rgba(255,255,255,0.1)", color: "#fff", fontSize: 14, fontWeight: 700,
             cursor: "pointer", fontFamily: FONT,
             boxShadow: "0 4px 24px rgba(125,113,211,0.3)",
             display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
@@ -285,7 +286,7 @@ export function SendPanel() {
             <button onClick={() => setStep("recipient")} style={{ flex: 1, padding: "13px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.08)", background: "transparent", color: "#666", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}>
               Back
             </button>
-            <button onClick={handleAmountNext} style={{ flex: 2, padding: "13px", borderRadius: 12, background: `linear-gradient(135deg, ${ACCENT}, #5a4fb5)`, border: "none", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: FONT, boxShadow: "0 4px 24px rgba(125,113,211,0.3)", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+            <button onClick={handleAmountNext} style={{ flex: 2, padding: "13px", borderRadius: 12, background: "#161616", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: FONT, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
               Review {IC.arrowRight}
             </button>
           </div>
@@ -332,8 +333,8 @@ export function SendPanel() {
             </button>
             <button onClick={handleSend} disabled={sending} style={{
               flex: 2, padding: "13px", borderRadius: 12,
-              background: sending ? "rgba(125,113,211,0.4)" : `linear-gradient(135deg, ${ACCENT}, #5a4fb5)`,
-              border: "none", color: "#fff", fontSize: 14, fontWeight: 700,
+              background: sending ? "rgba(255,255,255,0.05)" : "#161616",
+              border: sending ? "1px solid rgba(255,255,255,0.06)" : "1px solid rgba(255,255,255,0.1)", color: "#fff", fontSize: 14, fontWeight: 700,
               cursor: sending ? "not-allowed" : "pointer", fontFamily: FONT,
               boxShadow: sending ? "none" : "0 4px 24px rgba(125,113,211,0.3)",
               display: "flex", alignItems: "center", justifyContent: "center", gap: 8,

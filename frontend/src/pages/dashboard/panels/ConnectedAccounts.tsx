@@ -1,6 +1,6 @@
 import React, { useState, useContext, useEffect, useCallback } from "react";
 import { IC, FONT, ACCENT } from "../icons";
-import { WalletContext } from "../../../components/SolanaWalletProvider";
+import { WalletContext } from "@/components/WalletContext";
 import { post, api } from "../../../lib/api";
 
 // ─── Types ────────────────────────────────────────────────────────────────────

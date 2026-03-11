@@ -136,6 +136,10 @@ async def _poll(client: tweepy.Client):
             await asyncio.sleep(60)
             continue
         except Exception as e:
+            if "402 Payment Required" in str(e):
+                log.warning("Twitter API 402 — no credits on this account. Backing off 1 hour.")
+                await asyncio.sleep(3600)
+                continue
             log.error("Twitter poll error: %s", e)
 
         await asyncio.sleep(POLL_INTERVAL)

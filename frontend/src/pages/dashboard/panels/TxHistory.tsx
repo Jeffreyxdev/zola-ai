@@ -1,13 +1,7 @@
 import { useState, useContext, useEffect, useCallback } from "react";
-import { Connection, PublicKey, LAMPORTS_PER_SOL } from "@solana/web3.js";
-import { WalletContext } from "../../../components/SolanaWalletProvider";
+import { WalletContext } from "@/components/WalletContext";
 import { IC, FONT, ACCENT } from "../icons";
-
-function getRpcUrl(cluster: string) {
-  return cluster === "devnet"
-    ? "https://api.devnet.solana.com"
-    : "https://api.mainnet-beta.solana.com";
-}
+import { api } from "../../../lib/api";
 
 function timeAgo(ts: number) {
   const diff = Math.floor(Date.now() / 1000 - ts);
@@ -39,32 +33,17 @@ export function TxHistory() {
     setLoading(true);
     setError("");
     try {
-      const conn = new Connection(getRpcUrl(cluster), "confirmed");
-      const sigs = await conn.getSignaturesForAddress(new PublicKey(publicKey), { limit: 10 });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const data = await api<{ transactions: Array<{ sig: string; blockTime: number; type: string; amount: string; err: any }> }>(
+        `/api/wallet/${publicKey}/transactions?limit=10&cluster=${cluster}`
+      );
 
-      const result: TxRow[] = await Promise.all(sigs.map(async (s) => {
-        let amount = "—";
-        let type   = "Transaction";
-        try {
-          const tx = await conn.getParsedTransaction(s.signature, { maxSupportedTransactionVersion: 0 });
-          if (tx) {
-            const myIdx = tx.transaction.message.accountKeys.findIndex(k => k.pubkey.toString() === publicKey);
-            if (myIdx >= 0 && tx.meta) {
-              const pre  = tx.meta.preBalances[myIdx]  ?? 0;
-              const post = tx.meta.postBalances[myIdx] ?? 0;
-              const net  = (post - pre) / LAMPORTS_PER_SOL;
-              amount = (net >= 0 ? "+" : "") + net.toFixed(4) + " SOL";
-              type   = net < 0 ? "Sent" : net > 0 ? "Received" : "Transaction";
-            }
-          }
-        } catch { /* skip parse errors */ }
-        return {
-          sig:    s.signature,
-          time:   s.blockTime ? timeAgo(s.blockTime) : "—",
-          type,
-          amount,
-          status: s.err ? "fail" : "success",
-        };
+      const result: TxRow[] = (data.transactions || []).map(t => ({
+        sig:    t.sig,
+        time:   t.blockTime ? timeAgo(t.blockTime) : "—",
+        type:   t.type,
+        amount: t.amount,
+        status: t.err ? "fail" : "success",
       }));
       setRows(result);
     } catch (e: unknown) {

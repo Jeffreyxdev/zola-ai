@@ -1,5 +1,5 @@
 import { useContext } from "react";
-import { WalletContext, type Cluster } from "../../../components/SolanaWalletProvider";
+import { WalletContext } from "@/components/WalletContext";
 import { IC, FONT } from "../icons";
 
 const ENDPOINTS: Record<string, string> = {

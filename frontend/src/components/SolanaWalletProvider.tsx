@@ -1,27 +1,15 @@
-import React, { createContext, useState, useCallback, useEffect, type ReactNode } from 'react';
+import { useState, useCallback, useEffect, type ReactNode } from 'react';
 
 import { PhantomWalletAdapter } from '@solana/wallet-adapter-phantom';
 import { SolflareWalletAdapter } from '@solana/wallet-adapter-solflare';
 import { BackpackWalletAdapter } from '@solana/wallet-adapter-backpack';
 import { WalletReadyState, type WalletAdapter } from '@solana/wallet-adapter-base';
 import { post } from '../lib/api';
-
-export type SupportedWalletName = 'Phantom' | 'Solflare' | 'Backpack' | 'Magic Eden';
-
-export type Cluster = "mainnet-beta" | "devnet";
-
-export interface WalletContextType {
-  publicKey: string | null;
-  isConnected: boolean;
-  walletName: SupportedWalletName | null;
-  readyStates: Record<SupportedWalletName, WalletReadyState>;
-  connect: (name: SupportedWalletName) => Promise<boolean>;
-  disconnect: () => Promise<void>;
-  cluster: Cluster;
-  setCluster: (c: Cluster) => void;
-}
-
-export const WalletContext = createContext<WalletContextType | null>(null);
+import {
+  WalletContext,
+  type SupportedWalletName,
+  type Cluster
+} from './WalletContext';
 
 // Instantiate adapters once (not inside render)
 const adapters: Partial<Record<SupportedWalletName, WalletAdapter>> = {
@@ -49,6 +37,7 @@ async function registerWallet(wallet: string, cluster: string) {
 export const SolanaWalletProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [publicKey, setPublicKey] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(true); // Start true on mount to prevent race conditions
   const [walletName, setWalletName] = useState<SupportedWalletName | null>(null);
   const [activeAdapter, setActiveAdapter] = useState<WalletAdapter | null>(null);
   const [cluster, setCluster] = useState<Cluster>("mainnet-beta");
@@ -79,10 +68,99 @@ export const SolanaWalletProvider: React.FC<{ children: ReactNode }> = ({ childr
       return () => adapter.off('readyStateChange', handler);
     });
 
-    return () => unsubs.forEach((unsub) => unsub());
+    // Auto-connect if wallet was previously connected
+    const savedWallet = localStorage.getItem('zola_walletName') as SupportedWalletName | null;
+    let autoConnectTimer: ReturnType<typeof setTimeout> | undefined;
+
+    const performAutoConnect = async () => {
+      if (!savedWallet) {
+        setIsConnecting(false);
+        return;
+      }
+
+      if (savedWallet === 'Magic Eden') {
+        const checkME = setInterval(async () => {
+          const provider = getMagicEdenProvider();
+          if (provider) {
+            clearInterval(checkME);
+            clearTimeout(autoConnectTimer);
+            try {
+              const resp = await provider.connect();
+              const pk = resp.publicKey.toString();
+              setPublicKey(pk);
+              setIsConnected(true);
+              setWalletName('Magic Eden');
+              setActiveAdapter(null);
+            } catch {
+              localStorage.removeItem('zola_walletName');
+            } finally {
+              setIsConnecting(false);
+            }
+          }
+        }, 100);
+        autoConnectTimer = setTimeout(() => {
+          clearInterval(checkME);
+          setIsConnecting(false);
+        }, 1500);
+      } else {
+        const adapter = adapters[savedWallet];
+        if (!adapter) {
+          setIsConnecting(false);
+          return;
+        }
+
+        const tryAdapterConnect = async () => {
+          try {
+            await adapter.connect();
+            if (adapter.publicKey) {
+              setPublicKey(adapter.publicKey.toString());
+              setIsConnected(true);
+              setWalletName(savedWallet);
+              setActiveAdapter(adapter);
+              adapter.once('disconnect', () => {
+                setPublicKey(null);
+                setIsConnected(false);
+                setWalletName(null);
+                setActiveAdapter(null);
+                localStorage.removeItem('zola_walletName');
+              });
+            }
+          } catch {
+            localStorage.removeItem('zola_walletName');
+          } finally {
+            setIsConnecting(false);
+          }
+        };
+
+        if (adapter.readyState === WalletReadyState.Installed || adapter.readyState === WalletReadyState.Loadable) {
+          tryAdapterConnect();
+        } else {
+          const readyHandler = () => {
+            if (adapter.readyState === WalletReadyState.Installed || adapter.readyState === WalletReadyState.Loadable) {
+              adapter.off('readyStateChange', readyHandler);
+              clearTimeout(autoConnectTimer);
+              tryAdapterConnect();
+            }
+          };
+          adapter.on('readyStateChange', readyHandler);
+          autoConnectTimer = setTimeout(() => {
+            adapter.off('readyStateChange', readyHandler);
+            setIsConnecting(false);
+          }, 1500);
+        }
+      }
+    };
+
+    performAutoConnect();
+
+    return () => {
+      if (autoConnectTimer) clearTimeout(autoConnectTimer);
+      unsubs.forEach((unsub) => unsub());
+    };
   }, []);
 
   const connect = useCallback(async (name: SupportedWalletName): Promise<boolean> => {
+    setIsConnecting(true);
     try {
       // Magic Eden — window injection path
       if (name === 'Magic Eden') {
@@ -99,6 +177,7 @@ export const SolanaWalletProvider: React.FC<{ children: ReactNode }> = ({ childr
         setActiveAdapter(null);
         // ← Register with backend (include current cluster)
         await registerWallet(pk, cluster);
+        localStorage.setItem('zola_walletName', 'Magic Eden');
         return true;
       }
 
@@ -136,14 +215,18 @@ export const SolanaWalletProvider: React.FC<{ children: ReactNode }> = ({ childr
         setIsConnected(false);
         setWalletName(null);
         setActiveAdapter(null);
+        localStorage.removeItem('zola_walletName');
       });
 
+      localStorage.setItem('zola_walletName', name);
       return true;
     } catch (err: unknown) {
       if ((err as { name?: string })?.name !== 'WalletConnectionError') {
         console.error(`Failed to connect ${name}:`, err);
       }
       return false;
+    } finally {
+      setIsConnecting(false);
     }
   }, [activeAdapter, cluster]);
 
@@ -174,11 +257,12 @@ export const SolanaWalletProvider: React.FC<{ children: ReactNode }> = ({ childr
       setIsConnected(false);
       setWalletName(null);
       setActiveAdapter(null);
+      localStorage.removeItem('zola_walletName');
     }
   }, [walletName, activeAdapter]);
 
   return (
-    <WalletContext.Provider value={{ publicKey, isConnected, walletName, readyStates, connect, disconnect, cluster, setCluster }}>
+    <WalletContext.Provider value={{ publicKey, isConnected, isConnecting, walletName, readyStates, connect, disconnect, cluster, setCluster }}>
       {children}
     </WalletContext.Provider>
   );

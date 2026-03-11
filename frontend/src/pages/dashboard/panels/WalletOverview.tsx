@@ -1,6 +1,6 @@
 import { useState, useContext, useEffect, useCallback } from "react";
 import { Connection, PublicKey, LAMPORTS_PER_SOL } from "@solana/web3.js";
-import { WalletContext } from "../../../components/SolanaWalletProvider";
+import { WalletContext } from "@/components/WalletContext";
 import { IC, FONT, ACCENT } from "../icons";
 
 // CoinGecko IDs for common Solana tokens
@@ -12,9 +12,9 @@ const COINGECKO_IDS: Record<string, string> = {
 };
 
 const KNOWN_TOKENS = [
-  { symbol: "USDC", name: "USD Coin" },
-  { symbol: "JTO",  name: "Jito"     },
-  { symbol: "BONK", name: "Bonk"     },
+  { symbol: "USDC", name: "USD Coin", logo: "https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v/logo.png" },
+  { symbol: "JTO",  name: "Jito",     logo: "https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/jtojtomepa8beP8AuQc6eRk4YMA2PMA8MA6aP8MA6mA/logo.png" },
+  { symbol: "BONK", name: "Bonk",     logo: "https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263/logo.png" },
 ];
 
 function getRpcUrl(cluster: string) {
@@ -169,7 +169,7 @@ export function WalletOverview({ onSend, onReceive }: { onSend: () => void; onRe
           onMouseEnter={e => (e.currentTarget.style.background = "rgba(125,113,211,0.05)")}
           onMouseLeave={e => (e.currentTarget.style.background = "rgba(255,255,255,0.02)")}
         >
-          <div style={{ width: 32, height: 32, borderRadius: 8, background: "rgba(125,113,211,0.12)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{IC.solana}</div>
+          <div style={{ width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{IC.solana}</div>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 13, fontWeight: 600, color: "#ddd" }}>SOL</div>
             <div style={{ fontSize: 11, color: "#444" }}>Solana</div>
@@ -186,7 +186,9 @@ export function WalletOverview({ onSend, onReceive }: { onSend: () => void; onRe
             onMouseEnter={e => (e.currentTarget.style.background = "rgba(125,113,211,0.05)")}
             onMouseLeave={e => (e.currentTarget.style.background = "rgba(255,255,255,0.02)")}
           >
-            <div style={{ width: 32, height: 32, borderRadius: 8, background: "rgba(125,113,211,0.12)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, color: ACCENT, flexShrink: 0 }}>{t.symbol.slice(0, 3)}</div>
+            <div style={{ width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, borderRadius: "50%", overflow: "hidden" }}>
+              <img src={t.logo} alt={t.symbol} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            </div>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 13, fontWeight: 600, color: "#ddd" }}>{t.symbol}</div>
               <div style={{ fontSize: 11, color: "#444" }}>{t.name}</div>

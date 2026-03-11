@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useContext } from "react";
 import { FONT, ACCENT } from "../icons";
-import { WalletContext } from "../../../components/SolanaWalletProvider";
+import { WalletContext } from "@/components/WalletContext";
 import { WS_BASE, API_BASE } from "../../../lib/api";
 
 interface LogLine {

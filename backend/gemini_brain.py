@@ -166,7 +166,7 @@ async def _tool_jupiter_swap(
     amount_in: float,
     cluster: str = "mainnet-beta",
 ) -> dict:
-    """Swaps tokens via Jupiter DEX."""
+    """Swaps tokens via Jupiter DEX with fee referral."""
     if cluster != "mainnet-beta":
         return {"error": "Jupiter only supports mainnet-beta"}
     try:
@@ -174,6 +174,7 @@ async def _tool_jupiter_swap(
         import httpx
         from solana.rpc.async_api import AsyncClient
         from solders.transaction import VersionedTransaction
+        import db
 
         sender_kr = _get_keypair(wallet)
         if not sender_kr:
@@ -196,20 +197,30 @@ async def _tool_jupiter_swap(
         mint_out = MINTS.get(token_out.upper(), token_out)
         lamports = int(amount_in * 1_000_000_000)
 
+        fee_bps      = int(os.getenv("JUPITER_FEE_BPS", "30"))
+        fee_account  = os.getenv("JUPITER_FEE_ACCOUNT", "")
+
         async with httpx.AsyncClient(timeout=30) as http:
-            q = await http.get(
+            quote_url = (
                 f"https://quote-api.jup.ag/v6/quote"
                 f"?inputMint={mint_in}&outputMint={mint_out}"
                 f"&amount={lamports}&slippageBps=50"
+                f"&platformFeeBps={fee_bps}"
             )
+            q = await http.get(quote_url)
             quote = q.json()
             if "error" in quote:
                 return {"error": quote["error"]}
 
-            s = await http.post(
-                "https://quote-api.jup.ag/v6/swap",
-                json={"quoteResponse": quote, "userPublicKey": str(sender_kr.pubkey()), "wrapAndUnwrapSol": True},
-            )
+            swap_body: dict = {
+                "quoteResponse": quote,
+                "userPublicKey": str(sender_kr.pubkey()),
+                "wrapAndUnwrapSol": True,
+            }
+            if fee_account:
+                swap_body["feeAccount"] = fee_account
+
+            s = await http.post("https://quote-api.jup.ag/v6/swap", json=swap_body)
             swap = s.json()
             if "swapTransaction" not in swap:
                 return {"error": str(swap)}
@@ -221,6 +232,24 @@ async def _tool_jupiter_swap(
 
             resp = await AsyncClient(_get_rpc_url(cluster)).send_transaction(signed_tx)
             sig  = str(resp.value)
+
+            # Log fee revenue to DB
+            fee_rate    = fee_bps / 10_000
+            estimated_fee_usd = amount_in * fee_rate  # rough USD if token_in ≈ USD; actual logged in SOL-equivalent
+            try:
+                await db.log_swap_fee(
+                    wallet=wallet,
+                    token_in=token_in,
+                    token_out=token_out,
+                    amount_in=amount_in,
+                    fee_usd=estimated_fee_usd,
+                    tx_signature=sig,
+                    cluster=cluster,
+                    fee_collected=lamports * fee_rate,
+                )
+            except Exception as fee_err:
+                log.warning("Could not log swap fee: %s", fee_err)
+
             return {"status": "success", "signature": sig, "explorer": f"https://explorer.solana.com/tx/{sig}"}
     except Exception as e:
         return {"error": str(e)}

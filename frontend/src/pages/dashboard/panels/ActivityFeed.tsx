@@ -1,14 +1,7 @@
 import { useState, useContext, useEffect, useCallback } from "react";
-import { Connection, PublicKey } from "@solana/web3.js";
-import { WalletContext } from "../../../components/SolanaWalletProvider";
+import { WalletContext } from "@/components/WalletContext";
 import { IC, FONT, ACCENT } from "../icons";
-import { WS_BASE } from "../../../lib/api";
-
-function getRpcUrl(cluster: string) {
-  return cluster === "devnet"
-    ? "https://api.devnet.solana.com"
-    : "https://api.mainnet-beta.solana.com";
-}
+import { WS_BASE, api } from "../../../lib/api";
 
 function shortSig(sig: string) {
   return `${sig.slice(0, 6)}…${sig.slice(-6)}`;
@@ -46,12 +39,12 @@ export function ActivityFeed() {
     setLoading(true);
     setError("");
     try {
-      const conn = new Connection(getRpcUrl(cluster), "confirmed");
-      const sigs = await conn.getSignaturesForAddress(
-        new PublicKey(publicKey),
-        { limit: 8 }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const data = await api<{ signatures: Array<{ signature: string; blockTime: number; memo: string | null; err: any }> }>(
+        `/api/wallet/${publicKey}/activity?limit=8&cluster=${cluster}`
       );
-      const result: TxRow[] = sigs.map(s => ({
+      
+      const result: TxRow[] = (data.signatures || []).map(s => ({
         sig:    s.signature,
         time:   s.blockTime ? timeAgo(s.blockTime) : "—",
         label:  s.memo ?? "Transaction",

@@ -1,5 +1,5 @@
 import { useContext, useState } from 'react';
-import { WalletContext, type SupportedWalletName } from '../../components/SolanaWalletProvider';
+import { WalletContext, type SupportedWalletName } from '@/components/WalletContext';
 import { WalletReadyState } from '@solana/wallet-adapter-base';
 import { PhantomWalletAdapter } from '@solana/wallet-adapter-phantom';
 import { SolflareWalletAdapter } from '@solana/wallet-adapter-solflare';

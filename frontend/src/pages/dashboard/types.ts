@@ -6,6 +6,8 @@ export type NavItem =
   | "history"
   | "activity"
   | "accounts"
+  | "analytics"
+  | "proalerts"
   | "notifications"
   | "settings";
 
