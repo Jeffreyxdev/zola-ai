@@ -1,6 +1,6 @@
 import { useState, useContext, useEffect, useCallback } from "react";
 import { Connection, PublicKey, LAMPORTS_PER_SOL } from "@solana/web3.js";
-import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
+
 import { WalletContext } from "@/components/WalletContext";
 import { IC, FONT, ACCENT } from "../icons";
 import { getSolanaRpcUrl } from "@/lib/api";
@@ -18,12 +18,8 @@ const TOKEN_MINTS: Record<string, string> = {
   BONK: "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263",
 };
 
-const TOKEN_DECIMALS: Record<string, number> = {
-  USDC: 6,
-  JTO:  9,
-  BONK: 5,
-};
 
+const TOKEN_PROGRAM_ID = new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
 const PLACEHOLDER_LOGO =
   "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAiIGhlaWdodD0iMzAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMTUiIGN5PSIxNSIgcj0iMTUiIGZpbGw9IiNkZGQiIC8+PC9zdmc+";
 
