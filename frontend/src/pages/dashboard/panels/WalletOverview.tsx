@@ -12,6 +12,14 @@ const COINGECKO_IDS: Record<string, string> = {
   BONK: "bonk",
 };
 
+// small grey circle used when a token logo fails to load
+const PLACEHOLDER_LOGO =
+  "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAiIGhlaWdodD0iMzAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMTUiIGN5PSIxNSIgcj0iMTUiIGZpbGw9IiNkZGQiIC8+PC9zdmc+";
+
+// extra RPC endpoints (comma‑separated env var) that will be tried sequentially
+const RPC_FALLBACKS: string[] =
+  ((import.meta.env.VITE_RPC_URL_FALLBACKS as string) || "").split(",").filter(u => !!u);
+
 const KNOWN_TOKENS = [
   { symbol: "USDC", name: "USD Coin", logo: "https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v/logo.png" },
   { symbol: "JTO",  name: "Jito",     logo: "https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/jtojtomepa8beP8AuQc6eRk4YMA2PMA8MA6aP8MA6mA/logo.png" },
@@ -87,11 +95,19 @@ export function WalletOverview({ onSend, onReceive }: { onSend: () => void; onRe
 
   const fetchBalance = useCallback(async () => {
     if (!publicKey) return;
-    try {
-      const conn = new Connection(getSolanaRpcUrl(cluster), "confirmed");
-      const lamps = await conn.getBalance(new PublicKey(publicKey));
-      setSolBalance(lamps / LAMPORTS_PER_SOL);
-    } catch { /* ignore */ }
+    const urls = [getSolanaRpcUrl(cluster), ...RPC_FALLBACKS];
+    for (const url of urls) {
+      try {
+        const conn = new Connection(url, "confirmed");
+        const lamps = await conn.getBalance(new PublicKey(publicKey));
+        setSolBalance(lamps / LAMPORTS_PER_SOL);
+        return;
+      } catch (err) {
+        console.warn("balance fetch failed on", url, err);
+        // try next URL
+      }
+    }
+    // all endpoints failed; leave balance unchanged
   }, [publicKey, cluster]);
 
   const fetchPrice = useCallback(async () => {
@@ -182,7 +198,16 @@ export function WalletOverview({ onSend, onReceive }: { onSend: () => void; onRe
             onMouseLeave={e => (e.currentTarget.style.background = "rgba(255,255,255,0.02)")}
           >
             <div style={{ width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, borderRadius: "50%", overflow: "hidden" }}>
-              <img src={t.logo} alt={t.symbol} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              <img
+                src={t.logo}
+                alt={t.symbol}
+                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                onError={e => {
+                  const img = e.currentTarget as HTMLImageElement;
+                  img.onerror = null;
+                  img.src = PLACEHOLDER_LOGO;
+                }}
+              />
             </div>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 13, fontWeight: 600, color: "#ddd" }}>{t.symbol}</div>

@@ -160,7 +160,16 @@ App runs at `http://localhost:5173`.
 | ----------------------------- | ------------------------------ | ------------------------------------- |
 | `TELEGRAM_TOKEN`              | Bot token from @BotFather      | `8683:AAF...`                         |
 | `RPC_URL`              | Solana JSON-RPC endpoint       | `https://api.mainnet-beta.solana.com` |
+| `RPC_URL_FALLBACKS`    | Comma-separated additional RPC URLs tried if primary fails | (none) |
 | `WS_URL`               | Solana WebSocket endpoint      | `wss://api.mainnet-beta.solana.com`   |
+
+> ⚠️ **Avoid the public mainnet RPC**
+> The stock `api.mainnet-beta.solana.com` often returns `403 Forbidden` or
+> rate‑limits brute‑force requests, which causes the dashboard to show “no
+> history” and the backend to log RPC errors. Set `RPC_URL` to a reliable
+> provider (e.g. `https://solana-api.projectserum.com`, a paid node vendor, or
+> your own validator) and optionally list extras in
+> `RPC_URL_FALLBACKS`.
 | `DB_PATH`                     | SQLite file path               | `./zola.db`                           |
 | `TG_ALERT_THROTTLE`           | Minimum seconds between TG alerts per wallet | `60` (set to `0` to disable) |
 | `TG_ALERT_INCLUDE_INBOUND`    | Send alerts for successful inbound transactions? | `0` (set to `1` to enable) |
@@ -177,13 +186,23 @@ App runs at `http://localhost:5173`.
 | -------------- | -------------------------- | ----------------------- |
 | `VITE_API_URL` | Backend HTTP base URL      | `http://localhost:8000` |
 | `VITE_WS_URL`  | Backend WebSocket base URL | `ws://localhost:8000`   |
+| `VITE_RPC_URL_FALLBACKS` | Comma‑separated list of alternate Solana RPC URLs to try if the primary fails | (none) |
 
 > ⚠️ **RPC certificate errors**
 > The default `https://api.mainnet-beta.solana.com` endpoint has periodically
 > served an expired/invalid TLS certificate. If you see `net::ERR_CERT_DATE_INVALID`
 > in the browser console, set `VITE_RPC_URL` to a reliable provider (e.g. `https://solana-api.projectserum.com`,
-> `https://rpc-mainnet.magiceden.io` or another RPC node). Make sure your system clock
-> is also correct, as a skewed clock will trigger the same error.
+> `https://rpc-mainnet.magiceden.io` or another RPC node). You can also list extra
+> providers in `VITE_RPC_URL_FALLBACKS` (comma‑separated) and the frontend will try
+> them in order if the first one times out.
+> 
+> ⚠️ **Token logo timeouts**
+> We load a handful of logos directly from the Solana Labs GitHub token list. Those
+> assets can sometimes be slow or rate‑limited (as you’ve seen with `net::ERR_TIMED_OUT`).
+> If you hit this, the dashboard will silently replace the image with a generic
+> placeholder. To avoid the dependency altogether you can host the images yourself
+> and override the `KNOWN_TOKENS` array in `WalletOverview.tsx` or provide a `VITE_TOKEN_LOGO_URL_<SYMBOL>`
+> env var and extend the code accordingly.
 
 ---
 

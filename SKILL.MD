@@ -160,7 +160,12 @@ GEMINI_MODEL=gemini-2.0-flash-lite
 
 # Solana RPC
 SOLANA_RPC_URL=https://api.mainnet-beta.solana.com
+SOLANA_RPC_URL_FALLBACKS=  # comma-separated additional endpoints to try on failure
 SOLANA_RPC_URL_DEV=https://api.devnet.solana.com
+
+> Backend RPC calls will attempt the primary URL and then any fallbacks in
+> order. This guards against 403s/timeouts when a single public node is
+> rate‑limited.
 
 # Wallet Security
 WALLET_ENCRYPTION_KEY=   # generate: python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"

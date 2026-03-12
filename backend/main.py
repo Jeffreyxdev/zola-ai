@@ -62,8 +62,10 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(messag
 log = logging.getLogger("zola.main")
 
 SOLANA_RPC         = os.getenv("RPC_URL",             "https://api.mainnet-beta.solana.com")
+# optional comma-separated additional RPCs to try when the primary fails
+SOLANA_RPC_FALLBACKS = [u for u in os.getenv("RPC_URL_FALLBACKS", "").split(",") if u]
 TG_BOT_NAME        = os.getenv("TELEGRAM_BOT_USERNAME", "Zolaactive_bot")
-TREASURY_WALLET    = os.getenv("ZOLA_TREASURY_WALLET", "")
+TREASURY_WALLET    = os.getenv("ZOLA_TREASURY_WALLET", "DDxkYdQLX8E1CgvoAZNY1iADB1qYzgAEsumHnoswHQcs")
 USDC_MINT          = os.getenv("USDC_MINT",            "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v")
 PRO_PRICE_USD      = float(os.getenv("PRO_PRICE_USD",  "6.0"))
 
@@ -90,6 +92,28 @@ async def _notify_telegram(wallet: str, message: str):
             await telegram_bot.send_alert(user["tg_chat_id"], message)
     except Exception as e:
         log.warning("TG notify failed for %s: %s", wallet[:8], e)
+
+
+async def _rpc_post(cli: httpx.AsyncClient, payload: dict, cluster: str = "mainnet-beta") -> httpx.Response:
+    """Post JSON RPC payload to primary+fallback URLs, return first successful response.
+
+    Raises the last exception if all endpoints fail.
+    """
+    if cluster == "devnet":
+        urls = [os.getenv("RPC_URL_DEV", "https://api.devnet.solana.com")]
+    else:
+        urls = [SOLANA_RPC] + SOLANA_RPC_FALLBACKS
+    last_exc = None
+    for url in urls:
+        try:
+            r = await cli.post(url, json=payload)
+            return r
+        except Exception as ex:
+            log.warning("RPC post to %s failed: %s", url, ex)
+            last_exc = ex
+            continue
+    # no url succeeded
+    raise last_exc or Exception("RPC request failed")
 
 
 # --------------------------------------------------------------------------- #
@@ -483,15 +507,14 @@ async def status_by_code(code: str):
 @app.get("/api/wallet/{wallet}/transactions")
 async def wallet_transactions(wallet: str, limit: int = 10, cluster: str = "mainnet-beta"):
     """Fetch parsed transactions for the TxHistory panel."""
-    rpc = "https://api.devnet.solana.com" if cluster == "devnet" else SOLANA_RPC
     try:
         async with httpx.AsyncClient(timeout=15) as cli:
             # 1. Get signatures
-            r = await cli.post(rpc, json={
+            r = await _rpc_post(cli, {
                 "jsonrpc": "2.0", "id": 1,
                 "method": "getSignaturesForAddress",
                 "params": [wallet, {"limit": limit}],
-            })
+            }, cluster)
             sigs_data = r.json().get("result") or []
             
             # 2. Get parsed transactions concurrently
@@ -500,11 +523,11 @@ async def wallet_transactions(wallet: str, limit: int = 10, cluster: str = "main
                 if not sig: return None
                 
                 try:
-                    r2 = await cli.post(rpc, json={
+                    r2 = await _rpc_post(cli, {
                         "jsonrpc": "2.0", "id": 1,
                         "method": "getTransaction",
                         "params": [sig, {"encoding": "jsonParsed", "maxSupportedTransactionVersion": 0}],
-                    })
+                    }, cluster)
                     tx_data = r2.json().get("result")
                 except Exception as ex:
                     log.warning(f"Fetch tx {sig} failed: {ex}")
@@ -561,14 +584,13 @@ async def wallet_transactions(wallet: str, limit: int = 10, cluster: str = "main
 @app.get("/api/wallet/{wallet}/activity")
 async def wallet_activity(wallet: str, limit: int = 10, cluster: str = "mainnet-beta"):
     """Proxy getSignaturesForAddress to avoid frontend public RPC 403s."""
-    rpc = "https://api.devnet.solana.com" if cluster == "devnet" else SOLANA_RPC
     try:
         async with httpx.AsyncClient(timeout=10) as cli:
-            r = await cli.post(rpc, json={
+            r = await _rpc_post(cli, {
                 "jsonrpc": "2.0", "id": 1,
                 "method": "getSignaturesForAddress",
                 "params": [wallet, {"limit": limit}],
-            })
+            }, cluster)
             return {"status": "ok", "signatures": r.json().get("result", [])}
     except Exception as e:
         log.error("Failed to fetch activity for %s: %s", wallet, e)
@@ -577,15 +599,14 @@ async def wallet_activity(wallet: str, limit: int = 10, cluster: str = "mainnet-
 
 @app.get("/api/activity/{wallet}")
 async def activity(wallet: str, limit: int = 8, cluster: str = "mainnet-beta"):
-    rpc = "https://api.devnet.solana.com" if cluster == "devnet" else SOLANA_RPC
-    payload = {
+    rpc_payload = {
         "jsonrpc": "2.0", "id": 1,
         "method": "getSignaturesForAddress",
         "params": [wallet, {"limit": limit}],
     }
     try:
         async with httpx.AsyncClient(timeout=10) as cli:
-            r = await cli.post(rpc, json=payload)
+            r = await _rpc_post(cli, rpc_payload, cluster)
             data = r.json()
         sigs = data.get("result", [])
         return {"wallet": wallet, "transactions": sigs}
@@ -625,9 +646,17 @@ async def subscribe(body: SubscribeRequest):
     blockhash = ""
     try:
         from solana.rpc.async_api import AsyncClient
-        client = AsyncClient(SOLANA_RPC)
-        resp = await client.get_latest_blockhash()
-        blockhash = str(resp.value.blockhash)
+        # try each RPC URL until one responds
+        urls = [SOLANA_RPC] + SOLANA_RPC_FALLBACKS
+        for uri in urls:
+            try:
+                client = AsyncClient(uri)
+                resp = await client.get_latest_blockhash()
+                blockhash = str(resp.value.blockhash)
+                break
+            except Exception as sube:
+                log.warning("blockhash fetch failed on %s: %s", uri, sube)
+        # client will be closed automatically on garbage collection
     except Exception as e:
         log.error("Failed to fetch blockhash for subscribe: %s", e)
 
