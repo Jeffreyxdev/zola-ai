@@ -2,6 +2,7 @@ import { useState, useContext, useEffect, useCallback } from "react";
 import { Connection, PublicKey, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { WalletContext } from "@/components/WalletContext";
 import { IC, FONT, ACCENT } from "../icons";
+import { getSolanaRpcUrl } from "@/lib/api";
 
 // CoinGecko IDs for common Solana tokens
 const COINGECKO_IDS: Record<string, string> = {
@@ -16,12 +17,6 @@ const KNOWN_TOKENS = [
   { symbol: "JTO",  name: "Jito",     logo: "https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/jtojtomepa8beP8AuQc6eRk4YMA2PMA8MA6aP8MA6mA/logo.png" },
   { symbol: "BONK", name: "Bonk",     logo: "https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263/logo.png" },
 ];
-
-function getRpcUrl(cluster: string) {
-  return cluster === "devnet"
-    ? "https://api.devnet.solana.com"
-    : "https://api.mainnet-beta.solana.com";
-}
 
 // ── Token Price Modal ──────────────────────────────────────────────────────
 interface PriceData { usd: number; usd_24h_change: number }
@@ -93,7 +88,7 @@ export function WalletOverview({ onSend, onReceive }: { onSend: () => void; onRe
   const fetchBalance = useCallback(async () => {
     if (!publicKey) return;
     try {
-      const conn = new Connection(getRpcUrl(cluster), "confirmed");
+      const conn = new Connection(getSolanaRpcUrl(cluster), "confirmed");
       const lamps = await conn.getBalance(new PublicKey(publicKey));
       setSolBalance(lamps / LAMPORTS_PER_SOL);
     } catch { /* ignore */ }

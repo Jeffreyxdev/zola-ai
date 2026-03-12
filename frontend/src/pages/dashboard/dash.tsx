@@ -50,24 +50,23 @@ function GuideBanner({ onGetStarted }: { onGetStarted: () => void }) {
   const [dismissed, setDismissed] = useState(false);
   if (dismissed) return null;
   return (
-    <div style={{ marginBottom: 24, padding: "18px 22px", background: "linear-gradient(135deg, rgba(125,113,211,0.12), rgba(3,225,255,0.06))", border: "1px solid rgba(125,113,211,0.22)", borderRadius: 16, display: "flex", alignItems: "center", gap: 20, position: "relative", overflow: "hidden", fontFamily: FONT }}>
+    <div style={{ marginBottom: 24, padding: "16px 20px", background: "linear-gradient(135deg, #1d1d1dff 0%, #1b1b1bff 100%)", border: "1px solid rgba(0, 0, 0, 0.15)", borderRadius: 16, display: "flex", alignItems: "center", gap: 16, position: "relative", overflow: "hidden", fontFamily: FONT }}>
       {/* left glow accent */}
-      <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 3, background: `linear-gradient(to bottom, ${ACCENT}, #03E1FF)`, borderRadius: "16px 0 0 16px" }} />
-      <div style={{ fontSize: 28, flexShrink: 0 }}>🚀</div>
+     
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: "#fff", marginBottom: 5 }}>Link your accounts to unlock Zola AI</div>
-        <div style={{ fontSize: 12, color: "#666", lineHeight: 1.6 }}>
-          📱 <strong style={{ color: "#999" }}>Telegram</strong> — get real-time wallet alerts directly in chat&nbsp;&nbsp;·&nbsp;&nbsp;
-          🐦 <strong style={{ color: "#999" }}>X / Twitter</strong> — send SOL and check balances via @mentions
+        <div style={{ fontSize: 13, fontWeight: 700, color: "#fff", marginBottom: 3 }}>Link your accounts to unlock Zola AI</div>
+        <div style={{ fontSize: 11, color: "#555", lineHeight: 1.5 }}>
+          <strong style={{ color: "#888" }}>Telegram</strong> — get real-time wallet alerts directly in chat&nbsp;&nbsp;·&nbsp;&nbsp;
+          <strong style={{ color: "#888" }}>X / Twitter</strong> — send SOL and check balances via @mentions
         </div>
       </div>
       <button
         onClick={onGetStarted}
-        style={{ flexShrink: 0, padding: "10px 18px", borderRadius: 10, border: "none", background: ACCENT, color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: FONT, whiteSpace: "nowrap" }}
+        style={{ flexShrink: 0, padding: "8px 16px", borderRadius: 20, border: "none", background: ACCENT, color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: FONT, whiteSpace: "nowrap" }}
         onMouseEnter={e => (e.currentTarget.style.opacity = "0.85")}
         onMouseLeave={e => (e.currentTarget.style.opacity = "1")}
       >
-        Get started →
+        Get started
       </button>
       <button
         onClick={() => setDismissed(true)}
@@ -302,7 +301,7 @@ export default function Dashboard() {
               )}
               <ProBadge onUpgrade={() => setShowPro(true)} />
               <div style={{ fontSize: 11, color: "#fff", fontFamily: "monospace" }}>{shortKey}</div>
-              <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#212222ff", boxShadow: "0 0 8px #303030ff" }} />
+              <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#212222ff", boxShadow: "0 0 8px #303030ff" }} />
             </div>
           </div>
 

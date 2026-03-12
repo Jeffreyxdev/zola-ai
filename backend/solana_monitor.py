@@ -25,6 +25,16 @@ load_dotenv()
 
 log = logging.getLogger("zola.monitor")
 
+# configuration (env vars)
+# minimum seconds between consecutive alerts for the *same wallet* (0 disables)
+ALERT_THROTTLE = float(os.getenv("TG_ALERT_THROTTLE", "60"))
+# if False, suppress successful inbound transactions (they can be noisy)
+ALERT_INCLUDE_INBOUND = os.getenv("TG_ALERT_INCLUDE_INBOUND", "0") == "1"
+
+# track last alert timestamps per wallet
+defaultdict = dict
+_last_alert: dict[str, float] = {}
+
 # ── RPC URLs ─────────────────────────────────────────────────────────────────
 def _ws_url(cluster: str = "mainnet-beta") -> str:
     if cluster == "devnet":
@@ -260,11 +270,53 @@ def _detect_direction(wallet: str, logs: list) -> str:
     return "inbound"
 
 
+def _throttled(wallet: str) -> bool:
+    """Return True if an alert for *wallet* should be skipped due to throttle.
+
+    Also updates the last-alert timestamp when returning False.
+    """
+    if ALERT_THROTTLE <= 0:
+        return False
+    now = asyncio.get_event_loop().time()
+    last = _last_alert.get(wallet, 0)
+    if now - last < ALERT_THROTTLE:
+        log.debug("Skipping balance alert; throttled for %s", wallet)
+        return True
+    _last_alert[wallet] = now
+    return False
+
+
 async def _fire_tg_alert(wallet: str, signature: str, status: str, cluster: str, direction: str = "unknown"):
+    """Send a TG alert, with simple filtering/throttling.
+
+    By default we only notify on outbound transfers or failures, and we
+    avoid spamming the same wallet more than once every ``ALERT_THROTTLE``
+    seconds.  Both behaviours are configurable via env vars:
+
+    - ``TG_ALERT_THROTTLE`` (seconds between alerts, default 60)
+    - ``TG_ALERT_INCLUDE_INBOUND`` (set to "1" to include inbound TXs)
+    """
     try:
         user = await get_user(wallet)
         if not user or not user.get("tg_chat_id"):
             return
+
+        # filter noisy inbound successes unless explicitly enabled
+        if direction == "inbound" and status == "success" and not ALERT_INCLUDE_INBOUND:
+            log.debug("Skipping inbound success alert for %s", wallet)
+            return
+
+        # throttle repeated alerts for same wallet
+        if ALERT_THROTTLE > 0:
+            now = asyncio.get_event_loop().time()
+            last = _last_alert.get(wallet, 0)
+            if now - last < ALERT_THROTTLE:
+                log.debug(
+                    "Throttling TG alert for %s (%.1fs since last)",
+                    wallet, now - last,
+                )
+                return
+            _last_alert[wallet] = now
 
         net        = "🧪 Devnet" if cluster == "devnet" else "🌐 Mainnet"
         short_sig  = f"{signature[:8]}…{signature[-8:]}"
@@ -311,6 +363,9 @@ async def _poll_balances_loop():
                     if old_bal is not None:
                         delta = new_bal - old_bal
                         if abs(delta) >= 0.001:
+                            # don't blast the same wallet if it's been too recent
+                            if _throttled(wallet):
+                                continue
                             direction = "📥 Received" if delta > 0 else "📤 Sent"
                             msg = (
                                 f"🚨 *Balance Change Detected*\n"

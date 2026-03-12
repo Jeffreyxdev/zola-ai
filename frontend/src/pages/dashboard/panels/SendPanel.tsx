@@ -8,16 +8,11 @@ import {
 } from "@solana/web3.js";
 import { WalletContext } from "@/components/WalletContext";
 import { IC, FONT, ACCENT } from "../icons";
+import { getSolanaRpcUrl } from "@/lib/api";
 
 type Step = "recipient" | "amount" | "review" | "done";
 
 const FEE_ESTIMATE = 0.000005; // ~5000 lamports
-
-function getRpcUrl(cluster: string) {
-  return cluster === "devnet"
-    ? "https://api.devnet.solana.com"
-    : "https://api.mainnet-beta.solana.com";
-}
 
 function isValidSolAddress(addr: string): boolean {
   try { new PublicKey(addr); return true; } catch { return false; }
@@ -80,7 +75,7 @@ export function SendPanel() {
   const fetchBalance = useCallback(async () => {
     if (!publicKey) return;
     try {
-      const conn = new Connection(getRpcUrl(cluster), "confirmed");
+      const conn = new Connection(getSolanaRpcUrl(cluster), "confirmed");
       const lamps = await conn.getBalance(new PublicKey(publicKey));
       setBalance(lamps / LAMPORTS_PER_SOL);
     } catch { setBalance(null); }
@@ -128,7 +123,7 @@ export function SendPanel() {
     setSending(true);
     setSendError("");
     try {
-      const conn   = new Connection(getRpcUrl(cluster), "confirmed");
+      const conn   = new Connection(getSolanaRpcUrl(cluster), "confirmed");
       const from   = new PublicKey(publicKey!);
       const to     = new PublicKey(recipient);
       const lamps  = Math.floor(parseFloat(amount) * LAMPORTS_PER_SOL);

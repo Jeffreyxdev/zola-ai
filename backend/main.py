@@ -627,7 +627,7 @@ async def subscribe(body: SubscribeRequest):
         from solana.rpc.async_api import AsyncClient
         client = AsyncClient(SOLANA_RPC)
         resp = await client.get_latest_blockhash()
-        blockhash = resp.value.blockhash
+        blockhash = str(resp.value.blockhash)
     except Exception as e:
         log.error("Failed to fetch blockhash for subscribe: %s", e)
 

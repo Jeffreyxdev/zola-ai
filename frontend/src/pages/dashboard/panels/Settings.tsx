@@ -2,11 +2,7 @@ import { useContext } from "react";
 import { WalletContext } from "@/components/WalletContext";
 import type { Cluster } from "@/components/WalletContext";
 import { IC, FONT } from "../icons";
-
-const ENDPOINTS: Record<string, string> = {
-  "mainnet-beta": "https://api.mainnet-beta.solana.com",
-  devnet:         "https://api.devnet.solana.com",
-};
+import { getSolanaRpcUrl } from "@/lib/api";
 
 export function Settings() {
   const ctx     = useContext(WalletContext);
@@ -49,7 +45,7 @@ export function Settings() {
         <div style={{ background: "#0a0a0a", borderRadius: 10, padding: "10px 14px", display: "flex", alignItems: "center", gap: 8 }}>
           <div style={{ width: 8, height: 8, borderRadius: "50%", background: isDevnet ? "#fbbf24" : "#4ade80", boxShadow: isDevnet ? "0 0 6px #fbbf24" : "0 0 6px #4ade80", flexShrink: 0 }} />
           <span style={{ fontSize: 11, color: "#888", fontFamily: "monospace", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            {ENDPOINTS[cluster]}
+            {getSolanaRpcUrl(cluster)}
           </span>
           <span style={{ fontSize: 10, fontWeight: 700, color: isDevnet ? "#fbbf24" : "#4ade80", letterSpacing: 1, textTransform: "uppercase" }}>
             {isDevnet ? "Devnet" : "Live"}

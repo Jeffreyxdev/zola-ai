@@ -138,3 +138,14 @@ def delete_private_key(public_key: str) -> bool:
     if removed:
         log.info("Private key deleted for wallet %s…", public_key[:8])
     return removed
+def has_pro_plan(public_key: str) -> bool:
+    """
+    Synchronously check if a wallet has an active pro subscription.
+    This is used by gemini_brain.py to gate analytics features.
+    """
+    with sqlite3.connect(_DB_PATH) as conn:
+        row = conn.execute(
+            "SELECT plan FROM subscriptions WHERE wallet = ?",
+            (public_key,)
+        ).fetchone()
+    return row is not None and row[0] == 'pro'

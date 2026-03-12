@@ -7,6 +7,20 @@ export const API_BASE =
 export const WS_BASE =
   import.meta.env.VITE_WS_URL as string ?? "ws://localhost:8000";
 
+/** Solana RPC URL helper */
+export function getSolanaRpcUrl(cluster: string = "mainnet-beta") {
+  if (cluster === "devnet") return "https://api.devnet.solana.com";
+  const url = (import.meta.env.VITE_RPC_URL as string) || "https://api.mainnet-beta.solana.com";
+  if (!import.meta.env.VITE_RPC_URL) {
+    // occasionally the stock mainnet API has an expired cert; warning makes
+    // it easier to diagnose from the console when fetching balance fails.
+    console.warn(
+      "Using default Solana RPC URL, consider setting VITE_RPC_URL to a healthy endpoint"
+    );
+  }
+  return url;
+}
+
 /** Typed fetch wrapper */
 export async function api<T = unknown>(
   path: string,

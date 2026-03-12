@@ -1,6 +1,6 @@
 import { useContext, useEffect, useState } from "react";
 import { WalletContext } from "@/components/WalletContext";
-import { api, post, type ZolaSubscription } from "../lib/api";
+import { api, post, getSolanaRpcUrl, type ZolaSubscription } from "../lib/api";
 
 const ACCENT = "#7D71D3";
 const FONT = "'Inter', 'SF Pro Display', sans-serif";
@@ -116,7 +116,7 @@ export function ProModal({ onClose, onSuccess }: ProModalProps) {
       const { Connection, PublicKey, SystemProgram, Transaction, LAMPORTS_PER_SOL } =
         await import("@solana/web3.js");
 
-      const connection = new Connection("https://api.mainnet-beta.solana.com", "confirmed");
+      const connection = new Connection(getSolanaRpcUrl(ctx?.cluster), "confirmed");
       const fromPubkey = new PublicKey(wallet);
       const toPubkey   = new PublicKey(quote.recipient);
 
@@ -125,7 +125,10 @@ export function ProModal({ onClose, onSuccess }: ProModalProps) {
         SystemProgram.transfer({ fromPubkey, toPubkey, lamports })
       );
       tx.feePayer = fromPubkey;
-      tx.recentBlockhash = quote.blockhash || (await connection.getLatestBlockhash()).blockhash;
+      tx.recentBlockhash = quote.blockhash;
+      if (!tx.recentBlockhash) {
+        tx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+      }
 
       // Sign via Phantom
       const phantom = (window as unknown as Record<string, unknown>).solana as {

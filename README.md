@@ -162,6 +162,8 @@ App runs at `http://localhost:5173`.
 | `RPC_URL`              | Solana JSON-RPC endpoint       | `https://api.mainnet-beta.solana.com` |
 | `WS_URL`               | Solana WebSocket endpoint      | `wss://api.mainnet-beta.solana.com`   |
 | `DB_PATH`                     | SQLite file path               | `./zola.db`                           |
+| `TG_ALERT_THROTTLE`           | Minimum seconds between TG alerts per wallet | `60` (set to `0` to disable) |
+| `TG_ALERT_INCLUDE_INBOUND`    | Send alerts for successful inbound transactions? | `0` (set to `1` to enable) |
 | `TWITTER_CONSUMER_KEY`        | Twitter App consumer key       |                                       |
 | `TWITTER_CONSUMER_SECRET`     | Twitter App consumer secret    |                                       |
 | `TWITTER_ACCESS_TOKEN`        | Bot account access token       |                                       |
@@ -175,6 +177,13 @@ App runs at `http://localhost:5173`.
 | -------------- | -------------------------- | ----------------------- |
 | `VITE_API_URL` | Backend HTTP base URL      | `http://localhost:8000` |
 | `VITE_WS_URL`  | Backend WebSocket base URL | `ws://localhost:8000`   |
+
+> ⚠️ **RPC certificate errors**
+> The default `https://api.mainnet-beta.solana.com` endpoint has periodically
+> served an expired/invalid TLS certificate. If you see `net::ERR_CERT_DATE_INVALID`
+> in the browser console, set `VITE_RPC_URL` to a reliable provider (e.g. `https://solana-api.projectserum.com`,
+> `https://rpc-mainnet.magiceden.io` or another RPC node). Make sure your system clock
+> is also correct, as a skewed clock will trigger the same error.
 
 ---
 
